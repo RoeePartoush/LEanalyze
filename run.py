@@ -7,6 +7,7 @@ Created on Sat Dec  7 18:55:23 2019
 """
 
 # base imports
+import os
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -14,7 +15,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import urllib
 from scipy.optimize import curve_fit
-
+from IPython import get_ipython
+get_ipython().run_line_magic('matplotlib', 'qt')
 # astropy imports
 from astropy.coordinates import SkyCoord  # High-level coordinates
 #from astropy.coordinates import ICRS, Galactic, FK4, FK5  # Low-level frames
@@ -24,6 +26,7 @@ from astropy.time import Time
 from astropy import wcs
 from astropy.visualization import ZScaleInterval
 
+from scipy import ndimage
 # local modules
 import File2Data as F2D
 import DustFit as DFit
@@ -52,28 +55,67 @@ import LEplots
 #for ind in np.arange(8):#len(image_files)):
 #    flnm_lst.append(home_dir+prefix+image_files[ind]+midfix+tmplt_img+sufix)
 #DIFF_df = F2D.FitsDiff(flnm_lst)
-
-#home_dir = 'https://stsci-transients.stsci.edu/atlas/cand/ROEE/CAS_a_DIFF/tyc3925/8/'
-#image_files=urllib.request.urlopen(home_dir+'fileslist.txt').read().decode("utf-8").split('\n')
-#image_files=image_files[0:-1]
-#files = image_files
-#for i in np.arange(len(files)): files[i]=home_dir+image_files[i]
-home_dir='/Users/roeepartoush/Desktop/STSCI/tyc3923/4/'
-files=open(home_dir+'fileslist.txt').read().split()
-for i in np.arange(len(files)): files[i]=home_dir+files[i]
+#%%
+home_dir = 'https://stsci-transients.stsci.edu/atlas/cand/ROEE/TYC_a_DIFF/tyc4419/2/20150814/'
+image_files=urllib.request.urlopen(home_dir+'fileslist.txt').read().decode("utf-8").split('\n')
+# image_files=image_files[0:-1]
+files = image_files
+for i in np.arange(len(files)): files[i]=home_dir+image_files[i]
+DIFF_df_BU = F2D.FitsDiff(files[:-1])
+# %%
+home_dir='/Users/roeepartoush/Desktop/STSCI/tyc2116/2/'#'/tmpl20130827'
+files=open(os.path.join(home_dir,'fileslist.txt')).read().split()
+for i in np.arange(len(files)): files[i]=os.path.join(home_dir,files[i])
 DIFF_df_BU = F2D.FitsDiff(files)
 # %%
-#inds=[manager.canvas.figure.number-1 for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
-#DIFF_df=DIFF_df_BU.iloc[inds]
-DIFF_df=DIFF_df_BU
+# inds=[manager.canvas.figure.number-1 for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
+# DIFF_df=DIFF_df_BU.iloc[inds]
+DIFF_df=DIFF_df_BU#_20130827
 plt.close('all')
+figures=[plt.figure() for i in DIFF_df.index]
+# %
 global coord_list
 coord_list=[]
-figures=[plt.figure() for i in DIFF_df.index]
 managers=[manager for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 for mng in managers: mng.window.showMaximized()
-LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=3,figs=figures)#,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst2,fluxSpace='LIN')
+LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')
 
+
+# %%
+ams = [0.05,0.07,0.1]
+files=DIFF_df['filename'].to_list()
+#global ev
+#ev=[]
+trkrs=[]
+Ms_lst=[]
+WCSs_lst=[]
+for am in ams:
+    print('am = '+str(am))
+    Ms, WCSs = LEplots.imshows_shifted(DIFF_df,PA=None,app_mot=am*u.arcsec/u.day,ref_ind=-1,med_filt_size=3,share_ax=None,plot_bl=False,downsamp=True)
+    Ms_lst.append(Ms)
+    WCSs_lst.append(WCSs)
+# %%
+for i in np.arange(len(ams)):
+    plt.figure('App. motion = '+str(ams[i]))
+    trkrs.append(LEplots.IndexTracker(ax=None, X=Ms_lst[i].copy(), titles=files, w_lst=WCSs_lst[i].copy()))
+
+# %%
+ra = Longitude(np.array(coord_list).reshape((len(coord_list),2))[:,0],unit=u.deg)
+dec = Latitude(np.array(coord_list).reshape((len(coord_list),2))[:,1],unit=u.deg)
+Orgs = SkyCoord(ra, dec, frame='fk5')
+SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5')
+#SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5')
+# PA = Angle([Org.position_angle(SN_sc)+Angle(180,'deg') for Org in Orgs])
+PA = Angle([Angle(180,'deg') for Org in Orgs])
+Ln = Angle([0.5  for Org in Orgs],u.arcmin)
+clmns = ['Orig', 'PA', 'Length']
+slitFPdf = pd.DataFrame(index=np.arange(len(Orgs)), columns=clmns, data = [(Orgs[i],PA[i],Ln[i]) for i in np.arange(len(Orgs))])
+
+# %%
+Wid = Angle(1,u.arcsec)
+FP_df_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf, width=Wid, REF_image=None, N_bins=30)
+# over_fwhm = Angle(0.0,u.arcsec)
+# FP_df_PSFeq_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf,PSFeq_overFWHM=over_fwhm,width=Wid,REF_image=stam)
 # %%
 Zscale = ZScaleInterval()
 figures=[manager.canvas.figure for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
@@ -82,7 +124,8 @@ for fig in figures:
     for ax in fig.get_axes():
         print(ax.title.get_text())
         for im in ax.get_images():
-            clim = Zscale.get_limits(im.get_array())
+            # clim = Zscale.get_limits(im.get_array())
+            clim = np.array([-1,1])*100
             print(im.get_clim())
 #            cvmin, cvmax = im.get_clim()
 #            inc = float(10)
@@ -93,30 +136,13 @@ for fig in figures:
             if fig.number>-6e6:
                 im.set_clim(clim[0],clim[1])
                 fig.canvas.draw()
-
-# %%
-ams = [0.07,0.10,0.13]
-files=DIFF_df['filename'].to_list()
-#global ev
-#ev=[]
-trkrs=[]
-Ms_lst=[]
-WCSs_lst=[]
-for am in ams:
-    Ms, WCSs = LEplots.imshows_shifted(DIFF_df,PA=None,app_mot=am*u.arcsec/u.day,ref_ind=0,med_filt_size=5,share_ax=None,plot_bl=False,downsamp=True)
-    Ms_lst.append(Ms)
-    WCSs_lst.append(WCSs)
-# %%
-for i in np.arange(len(ams)):
-    plt.figure('App. motion = '+str(ams[i]))
-    trkrs.append(LEplots.IndexTracker(ax=None, X=Ms_lst[i].copy(), titles=files, w_lst=WCSs_lst[i].copy()))
+#%%
+#=== LOAD LIGHT CURVES ==========
+LChome_dir = '/Users/roeepartoush/Documents/Astropy/Data/light curves'
+LCs_file = LChome_dir + '/SNIa_model_mlcs2k2_v007_early_smix_z0_av0_desr_ab.txt'
+LCtable = F2D.LightCurves(LCs_file)
 
 #%%
-# xxxxz=== LOAD LIGHT CURVES ==========
-#LChome_dir = '/Users/roeepartoush/Documents/Astropy/Data/light curves'
-#LCs_file = LChome_dir + '/SNIa_model_mlcs2k2_v007_early_smix_z0_av0_desr_ab.txt'
-#LCtable = F2D.LightCurves(LCs_file)
-
 # === DEFINE FLUX PROFILE AXIS ===
 #ra = Longitude(['0h49m21.6s'], unit=u.hourangle)
 #dec = Latitude(['58°43′3.5"'], unit=u.deg)
@@ -124,15 +150,7 @@ for i in np.arange(len(ams)):
 #dec = Latitude([56.81945503], unit=u.deg)
 #ra = Longitude([12.26663719,12.31493338,12.24598815,12.20174356,12.15089583,12.18478501,12.21745521],unit=u.deg)#[12.21707640,12.22903355], unit=u.deg)
 #dec = Latitude([58.71261933,58.71662884,58.70995621,58.69926131,58.68778571,58.68969553,58.70153964],unit=u.deg)#[58.70204724,58.70520108], unit=u.deg)
-ra = Longitude(np.array(coord_list).reshape((len(coord_list),2))[:,0],unit=u.deg)
-dec = Latitude(np.array(coord_list).reshape((len(coord_list),2))[:,1],unit=u.deg)
-Orgs = SkyCoord(ra, dec, frame='fk5')
-SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5')
-#SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5')
-PA = Angle([Org.position_angle(SN_sc)+Angle(180,'deg') for Org in Orgs])#Angle([62,0],u.degree)#Org.position_angle(SN_sc)+
-Ln = Angle([12  for Org in Orgs],u.arcsec)
-clmns = ['Orig', 'PA', 'Length']
-slitFPdf = pd.DataFrame(index=np.arange(len(Orgs)), columns=clmns, data = [(Orgs[i],PA[i],Ln[i]) for i in np.arange(len(Orgs))])
+
 
 #global DIFF_df
 #DIFF_df= DIFF_df_BU_TEMP_3824_1.iloc[np.argwhere(boolinds_3824_1)[:,0]]
@@ -152,8 +170,8 @@ DIFF_df = DIFF_df_BU_4419_2.iloc[np.argwhere([item in moshe_t for item in DIFF_d
 
 # === DETECT APPARENT MOTION =====
 # currently assuming len(slitFPdf)=1
-Wid = Angle(1,u.arcsec)
-FP_df_lst2 = LEtb.getFluxProfile(DIFF_df, slitFPdf, width=Wid, REF_image=None)
+Wid = Angle(10,u.arcsec)
+FP_df_lst = LEtb.getFluxProfile(DIFF_df.iloc[4:5], slitFPdf.iloc[1:2], width=Wid, REF_image=None, N_bins=50)
 over_fwhm = Angle(0.0,u.arcsec)
 FP_df_PSFeq_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf,PSFeq_overFWHM=over_fwhm,width=Wid,REF_image=stam)
 
@@ -176,10 +194,12 @@ plt.xlabel('Peak location [arcsec]')
 plt.ylabel('Image date [mjd]')
 
 # %%
+slope = 1/0.08
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-FPdfLST = FP_df_lst2_test.copy()
+FPdfLST = FP_df_lst.copy()
 plt.rcParams.update({'font.size': 16, 'font.weight': 'bold', 'font.family':'serif'})
-iii=7
+iii=0
+FPind=0
 y=FPdfLST[0].iloc[iii]['FluxProfile_ADUcal'].copy()
 x=FPdfLST[0].iloc[iii]['ProjAng'].copy().arcsec*slope
 xfit=-x.copy()#+43# +56
@@ -213,7 +233,7 @@ par_init = [0,140,0]
 bnd = (np.array([   0,   0,-1000]),
        np.array([1000,1000, 1000]))
 
-HDU=DIFF_df.iloc[inds[iii]]['Diff_HDU']
+HDU=DIFF_df.iloc[iii]['Diff_HDU']
 w = wcs.WCS(HDU.header)
 popt,pcov = curve_fit(ConvLC,xfit,yfit,bounds=bnd,p0=par_init)
 fig=plt.figure()
@@ -243,7 +263,7 @@ for i in np.arange(xy.shape[0]):
 ax2=plt.subplot2grid((2,2),(0,1),rowspan=1)
 plt.scatter(xfit+popt[2]-7.6,yfit,s=1,label='Flux profile')
 par_init[1:2] = popt[1:2]
-dust_wid=np.sqrt((popt[0]**2)-((DIFF_df.iloc[inds[iii]]['FWHM_ang'].arcsec*slope)**2))
+dust_wid=np.sqrt((popt[0]**2)-((DIFF_df.iloc[iii]['FWHM_ang'].arcsec*slope)**2))
 plt.plot(np.sort(xfit+popt[2])-7.6,ConvLC(np.sort(xfit),*popt),label='fit, FWHM='+'{:2.0f}'.format(popt[0])+' [days]')#'\u221D'
 plt.plot(phases[0:-1],ConvLC(np.sort(phases[0:-1]),*par_init),linewidth=1,c='r',label='model light curve')#, dm15='+str(LCtable['dm15'][tbl_ind]),c='r')
 #plt.xlabel('time [days]')

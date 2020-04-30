@@ -13,6 +13,7 @@ from tqdm import tqdm
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import sys
+# import matplotlib import transforms
 import matplotlib.pyplot as plt
 import matplotlib.axes as pltax
 from scipy import ndimage
@@ -233,15 +234,15 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 #                ax3_img.append(fig.add_subplot(212,sharex=ax3_img[0],sharey=ax3_img[0]))
         else:
             if ind==0:
-                ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,projection=w))
-#                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d'))#,facecolor='black'))
-                ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1))
+                ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,projection=w,fig=fig))
+#                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',fig=fig))#,facecolor='black'))
+                ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1,fig=fig))
                 if fluxSpace=='MAG': 
                     ax2_img[ind].invert_yaxis()
             else:
-                ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,sharex=ax_img[0],sharey=ax_img[0],projection=w))
-#                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',sharex=ax2_img[0],sharey=ax2_img[0],sharez=ax2_img[0]))#,facecolor='black'))
-                ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1,sharex=ax2_img[0],sharey=ax2_img[0]))
+                ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,sharex=ax_img[0],sharey=ax_img[0],projection=w,fig=fig))
+#                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',sharex=ax2_img[0],sharey=ax2_img[0],sharez=ax2_img[0]))#,facecolor='black',fig=fig))
+                ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1,sharex=ax2_img[0],sharey=ax2_img[0],fig=fig))
         
         zptmag = fitsDF.iloc[ind]['ZPTMAG']
         zpt_lin = np.power(10,-zptmag/2.5)
@@ -537,7 +538,7 @@ def imshows_shifted(fitsDF,PA,app_mot,ref_ind=None,med_filt_size=None,share_ax=N
 #        print(np.round(shift))
         mat=ndimage.shift(mat,np.round(np.array([shift[1], shift[0]])),order=0)
         w = WCS_shift(w,shift)
-        if downsamp:
+        if downsamp and (med_filt_size is not None):
             w = WCS_downsample(w,med_filt_size,mat.shape)
             mat = mat[::med_filt_size,::med_filt_size]
         if plot_bl:
@@ -599,6 +600,9 @@ class IndexTracker(object):
         rows, cols, self.slices = X.shape
         self.im = self.ax.imshow(self.X[:, :, self.ind],vmin=self.clim[0],vmax=self.clim[1],cmap='gray')
         self.ax.grid(color='white', ls='solid')
+        self.PixelTrans = wcs.WCS()#transforms.Affine2D()
+        self.overlay = self.ax.get_coords_overlay(self.PixelTrans)
+        self.overlay.grid(color='black', linestyle='solid', alpha=0.5)
         self.update()
 
     def onscroll(self, event):
