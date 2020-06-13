@@ -5,7 +5,8 @@ Created on Mon Nov 11 11:16:07 2019
 
 @author: roeepartoush
 """
-
+import re
+from io import StringIO
 import numpy as np
 import pandas as pd
 import astropy.io.ascii as asc
@@ -34,16 +35,16 @@ def FitsDiff(diff_flnm):
         difDF.loc[ind]['Diff_HDU'] = Diff_hdu
         difDF.loc[ind]['WCS_w'] = wcs.WCS(Diff_hdu.header)
         try:
-#            difDF.loc[ind]['Mask_HDU'] = fits.open(diff_flnm[ind] + '.mask.fits')[0]
-            difDF.at[ind,'Mask_mat'] = fits.getdata(diff_flnm[ind] + '.mask.fits')
-#            difDF.loc[ind]['Noise_HDU'] = fits.open(diff_flnm[ind] + '.noise.fits')[0]
-            difDF.at[ind,'Noise_mat'] = fits.getdata(diff_flnm[ind] + '.noise.fits')
+            difDF.loc[ind]['Mask_HDU'] = fits.open(diff_flnm[ind] + '.mask.fits')[0]
+            # difDF.at[ind,'Mask_mat'] = fits.getdata(diff_flnm[ind] + '.mask.fits')
+            difDF.loc[ind]['Noise_HDU'] = fits.open(diff_flnm[ind] + '.noise.fits')[0]
+            # difDF.at[ind,'Noise_mat'] = fits.getdata(diff_flnm[ind] + '.noise.fits')
         except Exception as e:
             print('\n***ERROR:*** '+str(e))
             difDF.at[ind,'Mask_mat'] = np.zeros(Diff_hdu.data.shape)
             difDF.at[ind,'Noise_mat'] = np.zeros(Diff_hdu.data.shape)
             pass
-        
+        print(ind)
         difDF.loc[ind]['Idate'] = Diff_hdu.header['MJD-OBS']
         
     difDF = FitsParams(diff_flnm, difDF)
@@ -83,6 +84,7 @@ def FitsParams(diff_flnm, difDF):
         try:
             dcmpH = fits.open(diff_flnm[ind] + '.dcmp')[0].header
             difDF.iloc[ind]['FWHM'] = dcmpH['FWHM']
+            difDF.iloc[ind]['M5SIGMA'] = dcmpH['M5SIGMA']
 #            difDF.iloc[ind]['M5SIGMA'] = fishKW(dcmpH,['M5SIGMA'])
             difDF.iloc[ind]['ZPTMAG'] = fishKW(dcmpH,['ZPTMAG00','ZPTMAG','MAGZERO'])
         except Exception as e:
@@ -198,3 +200,15 @@ def fishKW(header,KWlist):
         except:# Exception as e:
             pass
     return KWval
+
+def dcmp2df(dcmp_file):
+    hdr = fits.getheader(dcmp_file)
+    cols=[]
+    pattern = re.compile('COLTBL[0-9]{1,}')
+    for k in hdr.keys():
+        if pattern.match(k) is not None:
+            cols.append(hdr[k])
+    dat = fits.getdata(dcmp_file)
+    str_dat = StringIO(' '.join(cols)+dat.tostring().decode('utf-8'))
+    df = pd.read_csv(str_dat,sep='[ ]{1,}')
+    return df

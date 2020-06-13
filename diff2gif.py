@@ -36,7 +36,7 @@ def filesfile2fileslist(fls_lst_file,in_dir):
     for f in open(fls_lst_file).read().split():
         if f[-5:]=='.diff':
             f = f+'.fits'
-        f_legit = (os.path.isfile(os.path.join(in_dir,f)) and f[-10:]=='.diff.fits')
+        f_legit = (os.path.isfile(os.path.join(in_dir,f)) and f[-5:]=='.fits')
         if f_legit:
             fls_lst.append(f)
     return fls_lst

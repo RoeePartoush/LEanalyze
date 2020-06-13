@@ -7,6 +7,7 @@ Created on Sat Dec  7 18:55:23 2019
 """
 
 # base imports
+from tqdm import tqdm
 import os
 import numpy as np
 import pandas as pd
@@ -33,6 +34,21 @@ import DustFit as DFit
 import LEtoolbox as LEtb
 import LEplots
 
+# %%
+fig1=plt.figure()
+ax1=fig1.add_subplot(111)
+path = '/Users/roeepartoush/Documents/Research/Data/filters/fixed/'
+for file in [f for f in os.listdir(path) if (os.path.isfile(os.path.join(path,f)) and f.endswith('txt'))]:
+    data = ascii.read(os.path.join(path,file))
+    ax1.plot(data['wave'],data['transmission']/data['transmission'].max(),label=file)
+plt.legend()
+fig2=plt.figure()
+ax2=fig2.add_subplot(111,sharex=ax1)
+path = '/Users/roeepartoush/Documents/Research/Data/filters/fixed/lightcurves/'
+for file in [f for f in os.listdir(path) if (os.path.isfile(os.path.join(path,f)) and f.endswith('txt'))]:
+    data = ascii.read(os.path.join(path,file))
+    ax2.plot(data['wave'],data['transmission']/data['transmission'].max(),label=file)
+plt.legend()
 # %%
 ## === LOAD DIFF IMAGES ===========
 #home_dir = '/Users/roeepartoush/Downloads/Roee/'#2/'
@@ -63,84 +79,393 @@ files = image_files
 for i in np.arange(len(files)): files[i]=home_dir+image_files[i]
 DIFF_df_BU = F2D.FitsDiff(files[:-1])
 # %%
-home_dir='/Users/roeepartoush/Desktop/STSCI/tyc2116/2/'#'/tmpl20130827'
+# home_dir='/Users/roeepartoush/Documents/Research/Data/Tycho_KP/tyc4419/2/20130826'
+home_dir='/Users/roeepartoush/Documents/Research/Data/Cas_A_KP/tyc2116/2/'
 files=open(os.path.join(home_dir,'fileslist.txt')).read().split()
 for i in np.arange(len(files)): files[i]=os.path.join(home_dir,files[i])
 DIFF_df_BU = F2D.FitsDiff(files)
 # %%
+files=[]
+# root='/Users/roeepartoush/Documents/Research/Data/DOWNLOAD/armin/ut120919/4/'
+root='/Users/roeepartoush/Documents/Research/Data/DOWNLOAD/armin/leKeck/tyc4419a1/FIXED'#plhstproc/test'#'plhstproc/tyc4419/2'#
+# root='/Users/roeepartoush/Documents/Research/Data/DOWNLOAD/plhstproc/tyc4519/5/'
+for file in os.listdir(root):
+    if (file.endswith('sw.fits') or file.endswith('sw.fits')): files.append(os.path.join(root,file[:-5]))
+DIFF_df_BU = F2D.FitsDiff(files)
+# %%
 # inds=[manager.canvas.figure.number-1 for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 # DIFF_df=DIFF_df_BU.iloc[inds]
-DIFF_df=DIFF_df_BU#_20130827
-plt.close('all')
+# inds=list(np.arange(8)+24)#[8,9,10,11,12,13,15,16,18,21,24,25]
+DIFF_df=DIFF_df_BU#.iloc[[5,6,8,9,11,14,15,16,17,18]]#.iloc[[5,6,8,9,10,11,12,13,14]]#.iloc[inds]#pd.concat((DIFF_df_BU.iloc[12:16],DIFF_df_BU2.iloc[8:13]))
+# plt.close('all')
 figures=[plt.figure() for i in DIFF_df.index]
 # %
 global coord_list
 coord_list=[]
 managers=[manager for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 for mng in managers: mng.window.showMaximized()
-LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')
-
+LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures)
+#%%
+# plt.close('all')
+LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=None,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')
+# 
 
 # %%
-ams = [0.05,0.07,0.1]
+ams = [0.062]#,0.09,0.02]
+# PA = Angle(130,'deg')
+PA = Angle(151,'deg')
+shifts_lst=[]
+
+for am in ams:
+    print('am = '+str(am))
+    shifts = LEplots.calc_shifts(DIFF_df,PA=PA,app_mot=am*u.arcsec/u.day,ref_ind=-1)
+    # Ms, WCSs = LEplots.imshows_shifted(DIFF_df_BU.iloc[[0,1,2,4,10,20,21,22]],PA=PA,app_mot=am*u.arcsec/u.day,ref_ind=-1,med_filt_size=None,share_ax=None,plot_bl=False,downsamp=True)
+    shifts_lst.append(shifts)
+# %%
+ams = [0]#[0.05,0.08,0.02]
+# PA = Angle(130,'deg')
+PA = None#Angle(PA1[0].deg-360,'deg')
 files=DIFF_df['filename'].to_list()
 #global ev
 #ev=[]
-trkrs=[]
+
 Ms_lst=[]
 WCSs_lst=[]
 for am in ams:
     print('am = '+str(am))
-    Ms, WCSs = LEplots.imshows_shifted(DIFF_df,PA=None,app_mot=am*u.arcsec/u.day,ref_ind=-1,med_filt_size=3,share_ax=None,plot_bl=False,downsamp=True)
+    Ms, WCSs = LEplots.imshows_shifted(DIFF_df,PA=PA,app_mot=am*u.arcsec/u.day,ref_ind=-1,med_filt_size=None,share_ax=None,plot_bl=False,downsamp=False)
+    # Ms, WCSs = LEplots.imshows_shifted(DIFF_df_BU.iloc[[0,1,2,4,10,20,21,22]],PA=PA,app_mot=am*u.arcsec/u.day,ref_ind=-1,med_filt_size=None,share_ax=None,plot_bl=False,downsamp=True)
     Ms_lst.append(Ms)
     WCSs_lst.append(WCSs)
 # %%
+trkrs=[]
 for i in np.arange(len(ams)):
     plt.figure('App. motion = '+str(ams[i]))
-    trkrs.append(LEplots.IndexTracker(ax=None, X=Ms_lst[i].copy(), titles=files, w_lst=WCSs_lst[i].copy()))
+    trkrs.append(LEplots.IndexTracker(ax=None, X=Ms_lst[0].copy(), titles=files, w_lst=WCSs_lst[0].copy(),shifts=shifts_lst[i]))
+    # trkrs.append(LEplots.IndexTracker(ax=None, X=Ms_lst[i].copy(), titles=[files[i] for i in [0,1,2,4,10,20,21,22]], w_lst=WCSs_lst[i].copy()))
 
 # %%
+# Orgs=SkyCoord(["0:49:33.424 +58:46:19.21"],frame='fk5',unit=(u.hourangle, u.deg)) # PA = 172 deg, "A1" in tyc4419_1.ut131228.slits.png
+# Orgs=SkyCoord([[12.36304697 , 58.76167572]],frame='fk5',unit=(u.deg, u.deg)) # PA = 114 deg, "A2" in tyc4419_1.ut131228.slits.png
 ra = Longitude(np.array(coord_list).reshape((len(coord_list),2))[:,0],unit=u.deg)
 dec = Latitude(np.array(coord_list).reshape((len(coord_list),2))[:,1],unit=u.deg)
 Orgs = SkyCoord(ra, dec, frame='fk5')
-SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5')
-#SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5')
+# # SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5')
+# SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5')
 # PA = Angle([Org.position_angle(SN_sc)+Angle(180,'deg') for Org in Orgs])
-PA = Angle([Angle(180,'deg') for Org in Orgs])
-Ln = Angle([0.5  for Org in Orgs],u.arcmin)
+PA = Angle([Angle(151+180,'deg') for Org in Orgs])
+Ln = Angle([100  for Org in Orgs],u.arcsec)
 clmns = ['Orig', 'PA', 'Length']
 slitFPdf = pd.DataFrame(index=np.arange(len(Orgs)), columns=clmns, data = [(Orgs[i],PA[i],Ln[i]) for i in np.arange(len(Orgs))])
 
 # %%
-Wid = Angle(1,u.arcsec)
-FP_df_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf, width=Wid, REF_image=None, N_bins=30)
+Wid = Angle(6,u.arcsec)
+FP_df_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf, width=Wid, REF_image=None, N_bins=100)
 # over_fwhm = Angle(0.0,u.arcsec)
 # FP_df_PSFeq_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf,PSFeq_overFWHM=over_fwhm,width=Wid,REF_image=stam)
 # %%
+def remove_most_frequent(mat):
+    mat = mat*1.0
+    a,b=np.unique(mat.flatten(),return_counts=True)
+    
+    ind=np.argmax(b)
+    value = a[ind]
+    #print(value)
+    
+    mat[mat==value] = np.nan
+    return mat
+# %%
 Zscale = ZScaleInterval()
 figures=[manager.canvas.figure for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
-for fig in figures:
-    print(fig.number)
-    for ax in fig.get_axes():
-        print(ax.title.get_text())
-        for im in ax.get_images():
-            # clim = Zscale.get_limits(im.get_array())
-            clim = np.array([-1,1])*100
-            print(im.get_clim())
-#            cvmin, cvmax = im.get_clim()
-#            inc = float(10)
-#            if pchr=='a':
-#                inc = -inc
-#            elif pchr=='d':
-#                inc = inc
-            if fig.number>-6e6:
-                im.set_clim(clim[0],clim[1])
-                fig.canvas.draw()
+for fig in tqdm(figures):
+    # print(fig.number)
+    if fig.number>=0:#6e6:
+        for ax in fig.get_axes():
+            # print(ax.title.get_text())
+            for im in ax.get_images():
+                mat = im.get_array()*1.0
+                clim = Zscale.get_limits(remove_most_frequent(mat))
+                # mat[mat<0.1*np.mean(clim)] = np.nan
+                # im.set_data(mat)
+                # clim = np.array([-1*0,1])*1000
+                # clim = np.array([0,25e3])
+                # print(im.get_clim())
+    #            cvmin, cvmax = im.get_clim()
+    #            inc = float(10)
+    #            if pchr=='a':
+    #                inc = -inc
+    #            elif pchr=='d':
+    #                inc = inc
+                span=clim[1]-clim[0]
+                im.set_clim(clim[0],clim[1]+1*span)
+            fig.canvas.draw()
 #%%
 #=== LOAD LIGHT CURVES ==========
-LChome_dir = '/Users/roeepartoush/Documents/Astropy/Data/light curves'
-LCs_file = LChome_dir + '/SNIa_model_mlcs2k2_v007_early_smix_z0_av0_desr_ab.txt'
+LChome_dir = '/Users/roeepartoush/Documents/Research/Data/light_curves'
+LCs_file = LChome_dir + '/SNIa_model_mlcs2k2_v007_early_smix_z0_av0_desz_ab.txt'
 LCtable = F2D.LightCurves(LCs_file)
+
+
+# %%
+# DIFF_df = DIFF_df_BU.iloc[43:50]
+slope = 1/0.14#07
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+FPdfLST = FP_df_lst.copy()
+plt.rcParams.update({'font.size': 16, 'font.weight': 'bold', 'font.family':'serif'})
+iii=6#39-21-1
+FPind=0
+arcs_pk = -29.3#-30.5#-15
+arcs_l = -30.6#-33#-16.5#
+arcs_r = -24#-25#-8#
+def arcsec2phase(arcsec,scale_only=False):
+    if scale_only:
+        phase = arcsec*slope
+    else:
+        phase = (arcsec - arcs_pk)*slope
+    return phase
+
+def phase2arcsec(phase,scale_only=False):
+    if scale_only:
+        arcsec = phase/slope
+    else:
+        arcsec = phase/slope + arcs_pk
+    return arcsec
+
+# y = FPdfLST[FPind].iloc[iii]['FluxProfile_ADUcal'].copy()
+# x = arcsec2phase(FPdfLST[FPind].iloc[iii]['ProjAng'].copy().arcsec)
+y = np.concatenate(((120/90)*FPdfLST[FPind].iloc[iii]['FluxProfile_ADUcal'].copy(),65+FPdfLST[FPind].iloc[4]['FluxProfile_ADUcal'].copy()))
+x = arcsec2phase(np.concatenate((FPdfLST[FPind].iloc[iii]['ProjAng'].copy().arcsec,FPdfLST[FPind].iloc[4]['ProjAng'].copy().arcsec)))
+xfit=x.copy()#+43# +56
+yfit=y.copy()
+inds_nan=np.argwhere(np.isnan(yfit))[:,0]
+xfit=np.delete(xfit,inds_nan)
+yfit=np.delete(yfit,inds_nan)
+
+clip_inds = np.logical_and(xfit<arcsec2phase(arcs_r),xfit>arcsec2phase(arcs_l))
+xfit = xfit[clip_inds]
+yfit = yfit[clip_inds]
+phs_res = 0.1
+
+tbl_ind=np.argwhere(LCtable['dm15']==1)[0,0]
+fL=LCtable['func_L'][tbl_ind]
+phases=LCtable['phases'][tbl_ind]
+phs_min = np.nanmin(phases)
+phs_max = np.nanmax(phases)
+def ConvLC(x, phs_wid, PeakFlux, phs_shft, add_const, phs_scale):
+    y_p_unscaled, x_p = DFit.LCgrid_eval(fL,phs_wid,phs_res,np.array([phs_min,phs_max]))
+    
+    ref_FWHM_phshft = 0
+#    if ref_FWHM_phs:
+#        y_p_max_FWHM, x_p_max_FWHM = LCgrid_eval(LCfunc,np.sqrt(ref_FWHM_phs**2+phs_wid**2),phs_res,phases_p)
+#        ref_FWHM_phshft = x_p_max_FWHM[np.nanargmax(y_p_max_FWHM)]
+    
+    const = PeakFlux/fL(0) # normalize maximun luminosity to PeakFlux
+    x_arr=np.array(x)
+    x_arr = x_arr*phs_scale + phs_shft
+    x_arr = x_arr+0*x_p[np.nanargmax(y_p_unscaled)] +ref_FWHM_phshft
+    y = np.interp(x_arr, x_p, const*y_p_unscaled, left=0, right=0) + add_const
+#    plt.plot(np.array(x),y,label=('phs_wid='+str(int(phs_wid))+', PeakFlux='+str(int(PeakFlux))+', phs_shft='+str(int(phs_shft))+', ref_FWHM_phshft='+str(int(ref_FWHM_phshft))))
+    return y
+par_init = [0,70,+1,270,1]
+bnd = (np.array([   0,   0,-1000,-1e4,0.1]),
+       np.array([1,10000, 1000,1e4,10]))
+
+HDU=DIFF_df.iloc[iii]['Diff_HDU']
+w = wcs.WCS(HDU.header)
+popt,pcov = curve_fit(ConvLC,xfit,yfit,bounds=bnd,p0=par_init)
+
+fig=plt.figure()
+par_init2 = [0,popt[1],0*popt[2],popt[3]]
+#ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,projection=w))
+ax1=plt.subplot2grid((2,2),(0,0),rowspan=2,projection=w)
+mat=HDU.data*1.0
+im = plt.imshow(mat,cmap='gray')#,vmin=-125,vmax=125)
+clim = Zscale.get_limits(remove_most_frequent(mat))
+span=clim[1]-clim[0]
+im.set_clim(clim[0],clim[1]+1*span)
+lon = ax1.coords[0]
+lat = ax1.coords[1]
+lon.set_axislabel('RA')
+lat.set_axislabel('DEC')
+# # plt.imshow(HDU.data*1.0/float(HDU.header['KSUM00']),cmap='gray',vmin=-125,vmax=125)
+# # bbox_props = dict(boxstyle="rarrow,pad=0.3", fc=None, ec=None, lw=2)
+# # t = ax1.text(1263, 1874, "Tycho", ha="center", va="center", rotation=45,
+# #             size=20,
+# #             bbox=bbox_props)
+# plt.xlim([1100,1400])
+# plt.ylim([1800,2100])
+# divider = make_axes_locatable(ax1)
+# cax = divider.append_axes("right", size="5%", pad=0.05)
+# cax.get_yaxis().set_visible(False)
+# plt.colorbar(ax1.get_images()[0], cax=cax)
+# plt.colorbar()
+
+# plt.xlabel('RA').
+# plt.ylabel('DEC')
+xy=FPdfLST[FPind].iloc[iii]['WrldCorners']
+plt.plot(xy[:,0], xy[:,1], transform = ax1.get_transform('world'), linewidth=2, c='b')
+xy=FPdfLST[FPind].iloc[iii]['WrldCntrs']
+cntrs_inds = np.arange(9)+17
+for i in cntrs_inds:#np.arange(xy.shape[0]):
+    plt.scatter(xy[i,0], xy[i,1], transform = ax1.get_transform('world'), s=75)
+
+ax2=plt.subplot2grid((2,2),(0,1),rowspan=1,colspan=1)
+plt.scatter(x,y,s=0.1,c='k')#,label='entire profile')
+plt.scatter(xfit,yfit,s=2,label='Data used for fitting',c='r')
+# par_init[1:2] = popt[1:2]
+dust_wid=popt[0]#np.sqrt((popt[0]**2)-((DIFF_df.iloc[iii]['FWHM_ang'].arcsec*slope)**2))
+plt.plot(np.sort(xfit+0*popt[2]),ConvLC(np.sort(xfit),*popt),c='r',label='Fitting result, FWHM ='+'{:2.0f}'.format(popt[0])+' [days]')#'\u221D'
+plt.plot(phases[0:-5],ConvLC(np.sort(phases[0:-5]),*par_init),linewidth=0.5,c='b',label='Ia model light curve, dm15='+str(LCtable['dm15'][tbl_ind]))#,c='r')
+# plt.xlabel('time [days]')
+plt.ylabel('Flux [ADU]')
+plt.gca().legend()
+
+
+ax4=plt.subplot2grid((2,2),(1,1),rowspan=1,sharex=ax2)
+#ax5=ax4.twiny()
+cntrs=FPdfLST[FPind].iloc[iii]['FP_Ac_bin_x'][:] # arcsec
+cntrs_phs = arcsec2phase(cntrs)###(-cntrs)*slope+popt[2]
+bin_wid = arcsec2phase(np.mean(np.diff(cntrs)),scale_only=True) # days
+FWHMoSIG = 2*np.sqrt(2*np.log(2))
+for i in cntrs_inds:#np.arange(cntrs.shape[0]):
+    start = cntrs_phs[i]-0.5*bin_wid-3*dust_wid/2
+    stop = cntrs_phs[i]+0.5*bin_wid+3*dust_wid/2
+    x=np.linspace(start,stop,num=int((stop-start)/phs_res)+1)
+    y_rect = 1.0*(np.abs(x-cntrs_phs[i])<(bin_wid/2))
+    y = ndimage.gaussian_filter(y_rect,sigma=(dust_wid/FWHMoSIG)/phs_res)
+    plt.plot(x,y/y.max())
+plt.xlabel('Time from peak [days]')
+plt.ylabel('Weight [1]')
+
+fig.subplots_adjust(hspace=0)
+ax2.get_xaxis().set_visible(False)
+#start = 0-bin_wid-3*dust_wid
+#stop = 0+bin_wid+3*dust_wid
+#x=np.linspace(start,stop,num=int((stop-start)/phs_res)+1)
+#y_rect = 1.0*(np.abs(x-0*cntrs_phs[i])<(phs_res*2))
+#y = ndimage.gaussian_filter(y_rect,sigma=(dust_wid/FWHMoSIG)/phs_res)
+#plt.plot(x,y/y.max(),c='k',linewidth=1)
+
+xfit_lim=np.array(ax2.get_xlim())
+ax3=ax2.twiny()
+xxx_lim = phase2arcsec(xfit_lim)###((xfit_lim+popt[2])-1*popt[2])/slope
+plt.xlim(xxx_lim)
+xxx = phase2arcsec(xfit)###((xfit+popt[2])-0*popt[2])/slope
+plt.scatter(xxx,yfit,s=1,c='r')
+plt.xlabel('Distance from center of slit [arcsec]')
+
+# %%
+import copy
+from astropy.visualization import ZScaleInterval
+from mpl_toolkits.mplot3d import Axes3D
+
+FPdfLST = FP_df_lst.copy()
+plt.rcParams.update({'font.size': 12, 'font.weight': 'bold', 'font.family':'serif'})
+FPind=0
+### TIME SERIES CUTOUTS ###
+inds = [0,1,3,4]#[13,14,15,16,20]#[5,6,8,9,10,14]
+offsets = [960,1140,0,1000]#[992,2020,-22,1030,270,1320]
+factors = [3,2,1,1.5]#[2,2,1,4,1.5,2]
+peaks_arcs = np.array([15.26,6.27,0,-6.66])#[-15,-19,-22,-26,-29,-34])
+fig=plt.figure()
+M,N = 4,2
+axs=[]
+Zscale = ZScaleInterval()
+ax3d = plt.subplot2grid((M,N),(len(inds)//N,len(inds)%N),rowspan=2, colspan=2, projection='3d')
+ax3d.set_xlabel('Position along slit [arcsec]')
+ax3d.set_ylabel('Obs. date [MJD-56000]')
+ax3d.set_zlabel('Flux [ADU]')
+zlim=[-50,150]
+xlim=[-15,20]
+ys = []
+for i in np.arange(len(inds)):
+    HDU=DIFF_df.iloc[inds[i]]['Diff_HDU']
+    w = wcs.WCS(HDU.header)
+    if i==0:
+        ax = plt.subplot2grid((M,N),(i//N,i%N),projection=w)
+        w_0 = copy.deepcopy(w)
+        hdr_R = HDU.header
+    else:
+        ax = plt.subplot2grid((M,N),(i//N,i%N),projection=w_0,sharex=axs[0],sharey=axs[0])
+    lon = ax.coords[0]
+    lat = ax.coords[1]
+    lon.set_axislabel('RA')
+    lon.set_ticklabel_position('t')
+    lon.set_axislabel_position('t')
+    lon.set_ticks(spacing=3. * u.hourangle/3600)
+    lat.set_axislabel('DEC')
+    if i>0:#(i//N)>0:
+        lon.set_ticklabel_visible(False)
+        lon.set_axislabel('')
+    if i>0:#(i%N)>0:
+        lat.set_ticklabel_visible(False)
+        lat.set_axislabel('')
+    axs.append(ax)
+    mat = HDU.data*1.0
+    clim = list(Zscale.get_limits(remove_most_frequent(mat)))
+    span=clim[1]-clim[0]
+    clim[1] = clim[1] + 0.5*span
+    ax.imshow(mat, vmin=clim[0], vmax=clim[1], cmap='gray',interpolation='none',extent=LEplots.get_pix_extent(hdr_R,HDU.header))
+    xy=FPdfLST[FPind].iloc[inds[i]]['WrldCorners']
+    ax.plot(xy[:,0], xy[:,1], transform = ax.get_transform('world'), linewidth=1, c='r')
+    ax.grid(color='white', ls='solid')
+    ax.title.set_text(DIFF_df.iloc[inds[i]]['filename'])
+    # ax.set_xlim(1000,1400)
+    # ax.set_ylim(500,900)
+    
+    z = FPdfLST[FPind].iloc[inds[i]]['FluxProfile_ADUcal'].copy() - offsets[i]
+    z = z*factors[i]
+    x = FPdfLST[FPind].iloc[inds[i]]['ProjAng'].copy().arcsec
+    y = HDU.header['MJD-OBS'] - 56000
+    ys.append(y)
+    z_inds = np.logical_and(z>zlim[0],z<zlim[1])
+    x_inds = np.logical_and(x>xlim[0],x<xlim[1])
+    f_inds = np.logical_and(x_inds,z_inds)
+    x = x[f_inds]
+    z = z[f_inds]
+    ax3d.scatter(x,y*np.ones(x.shape),z,s=1,zorder=6-i)
+    
+    xx,zz,yyerr, yBref, stdBref, binCnt = FPdfLST[FPind].iloc[inds[i]][['FP_Ac_bin_x','FP_Ac_bin_y','FP_Ac_bin_yerr','FP_Ac_bin_yBref','FP_Ac_bin_ystdBref','FP_Ac_bin_Cnt']].to_list()
+    zz = zz.copy() - offsets[i]
+    zz = zz*factors[i]
+    xx = xx.copy()
+    z_inds = np.logical_and(zz>zlim[0],zz<zlim[1])
+    x_inds = np.logical_and(xx>xlim[0],xx<xlim[1])
+    f_inds = np.logical_and(x_inds,z_inds)
+    xx = xx[f_inds]
+    zz = zz[f_inds]
+    ax3d.plot(xx,y*np.ones(xx.shape),zz,zorder=11-i)
+
+ax3d.plot(peaks_arcs,np.array(ys),100*np.ones(peaks_arcs.shape),c='b',linewidth=3,marker="d",zorder=12)
+
+ax3d.set_zlim(zlim[0],zlim[1])
+ax3d.set_xlim(xlim[0],xlim[1])
+fig.subplots_adjust(hspace=0,wspace=0)
+#%%
+fig = plt.figure()
+# from mpl_toolkits.mplot3d import Axes3D
+w = DIFF_df.iloc[0]['WCS_w']
+factor = 1#LEtb.pix2ang(w,1).arcsec/0.05
+mat = DIFF_df.iloc[1]['Diff_HDU'].data
+# mat=LEtb.getAavgDiff(DIFF_df.iloc[3:4])
+# mat=ndimage.gaussian_filter(LEtb.getAavgDiff(DIFF_df.iloc[4:8]),sigma=1)
+# mat[mat>1700]=np.nan
+mat_c = np.log10(mat[265:311,922:966]-900)#[1875:1918,1278:1311]#[1863:1938,1255:1330]#[1855:1923,1276:1291]#DIFF_df.iloc[24]['Diff_HDU'].data[2059:2140,3852:3928]
+# mat_c[np.isnan(mat_c)]=0
+theta = Angle(0*32.48,u.deg).rad#np.pi/10#np.pi/2-PA[0].rad-np.pi
+X,Y = np.meshgrid(np.arange(mat_c.shape[1]),np.arange(mat_c.shape[0]))
+Xr = np.cos(theta)*X-np.sin(theta)*Y
+Yr = np.sin(theta)*X+np.cos(theta)*Y
+# ax = fig.add_subplot(111, projection='3d')
+# boolinds=np.abs(Yr-35)<5
+# ax.scatter(Xr[boolinds]*factor,Yr[boolinds]*factor,mat_c[boolinds],s=1)
+ax.scatter(Xr.flatten()*factor,Yr.flatten()*factor,mat_c.flatten(),s=1)
+# plt.scatter(Xr.flatten()*factor,mat_c.flatten(),s=1)
+# ax.plot_surface(Xr*factor, Yr*factor, mat_c, cmap='gray',linewidth=0, antialiased=False)
+plt.xlabel('x [days]')
+plt.ylabel('y [days]')
+
+# LEplots.imshowMat(LEtb.getAavgDiff(DIFF_df.iloc[8:13]),w,shareaxFig=figures[0])
 
 #%%
 # === DEFINE FLUX PROFILE AXIS ===
@@ -183,9 +508,10 @@ stam = np.zeros((2200,4200))
 #FP_df_lst4 = copy.deepcopy(FP_df_lst)
 #FP_df_PSFeq_lst=LEtb.addPeakLoc(FP_df_PSFeq_lst)
 # %%
-FP_df_lst2 = LEtb.addPeakLoc(FP_df_lst2)
-x = np.array(FP_df_lst2[0]['Peak_ProjAng_arcsec']).astype(float)
-y = np.array(DIFF_df.iloc[inds]['Idate']).astype(float)
+FP_df_lst = LEtb.addPeakLoc(FP_df_lst)
+# inds=[8,9,10,11,12,13]
+x = np.array(FP_df_lst[0]['Peak_ProjAng_arcsec']).astype(float)[:]
+y = np.array(DIFF_df.iloc[:]['Idate']).astype(float)[:]
 slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 plt.figure()
 plt.scatter(x,y,s=1)
@@ -193,115 +519,6 @@ plt.plot(x,slope*x+intercept)
 plt.xlabel('Peak location [arcsec]')
 plt.ylabel('Image date [mjd]')
 
-# %%
-slope = 1/0.08
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-FPdfLST = FP_df_lst.copy()
-plt.rcParams.update({'font.size': 16, 'font.weight': 'bold', 'font.family':'serif'})
-iii=0
-FPind=0
-y=FPdfLST[0].iloc[iii]['FluxProfile_ADUcal'].copy()
-x=FPdfLST[0].iloc[iii]['ProjAng'].copy().arcsec*slope
-xfit=-x.copy()#+43# +56
-yfit=y.copy()
-inds_nan=np.argwhere(np.isnan(yfit))[:,0]
-xfit=np.delete(xfit,inds_nan)
-yfit=np.delete(yfit,inds_nan)
-phs_res = 0.1
-
-tbl_ind=0
-fL=LCtable['func_L'][tbl_ind]
-phases=LCtable['phases'][tbl_ind]
-phs_min = np.nanmin(phases)
-phs_max = np.nanmax(phases)
-def ConvLC(x, phs_wid, PeakFlux, phs_shft):
-    y_p_unscaled, x_p = DFit.LCgrid_eval(fL,phs_wid,phs_res,np.array([phs_min,phs_max]))
-    
-    ref_FWHM_phshft = 0
-#    if ref_FWHM_phs:
-#        y_p_max_FWHM, x_p_max_FWHM = LCgrid_eval(LCfunc,np.sqrt(ref_FWHM_phs**2+phs_wid**2),phs_res,phases_p)
-#        ref_FWHM_phshft = x_p_max_FWHM[np.nanargmax(y_p_max_FWHM)]
-    
-    const = PeakFlux/fL(0) # normalize maximun luminosity to PeakFlux
-    x_arr=np.array(x)
-    x_arr = x_arr + phs_shft
-    x_arr = x_arr+0*x_p[np.nanargmax(y_p_unscaled)] +ref_FWHM_phshft
-    y = np.interp(x_arr, x_p, const*y_p_unscaled, left=0, right=0)
-#    plt.plot(np.array(x),y,label=('phs_wid='+str(int(phs_wid))+', PeakFlux='+str(int(PeakFlux))+', phs_shft='+str(int(phs_shft))+', ref_FWHM_phshft='+str(int(ref_FWHM_phshft))))
-    return y
-par_init = [0,140,0]
-bnd = (np.array([   0,   0,-1000]),
-       np.array([1000,1000, 1000]))
-
-HDU=DIFF_df.iloc[iii]['Diff_HDU']
-w = wcs.WCS(HDU.header)
-popt,pcov = curve_fit(ConvLC,xfit,yfit,bounds=bnd,p0=par_init)
-fig=plt.figure()
-#ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,projection=w))
-ax1=plt.subplot2grid((2,2),(0,0),rowspan=2,projection=w)
-plt.imshow(HDU.data*1.0/float(HDU.header['KSUM00']),cmap='gray',vmin=-125,vmax=125)
-bbox_props = dict(boxstyle="rarrow,pad=0.3", fc=None, ec=None, lw=2)
-t = ax1.text(1263, 1874, "Tycho", ha="center", va="center", rotation=45,
-            size=20,
-            bbox=bbox_props)
-plt.xlim([1200,1300])
-plt.ylim([1770,1900])
-#divider = make_axes_locatable(ax1)
-#cax = divider.append_axes("left", size="5%", pad=0.05)
-#cax.get_yaxis().set_visible(False)
-#plt.colorbar(ax1.get_images()[0], cax=cax)
-#plt.colorbar()
-
-plt.xlabel('RA')
-plt.ylabel('DEC')
-xy=FPdfLST[0].iloc[iii]['WrldCorners']
-plt.plot(xy[:,0], xy[:,1], transform = ax1.get_transform('world'), linewidth=2, c='b')
-xy=FPdfLST[0].iloc[iii]['WrldCntrs']
-for i in np.arange(xy.shape[0]):
-    plt.scatter(xy[i,0], xy[i,1], transform = ax1.get_transform('world'), s=75)
-
-ax2=plt.subplot2grid((2,2),(0,1),rowspan=1)
-plt.scatter(xfit+popt[2]-7.6,yfit,s=1,label='Flux profile')
-par_init[1:2] = popt[1:2]
-dust_wid=np.sqrt((popt[0]**2)-((DIFF_df.iloc[iii]['FWHM_ang'].arcsec*slope)**2))
-plt.plot(np.sort(xfit+popt[2])-7.6,ConvLC(np.sort(xfit),*popt),label='fit, FWHM='+'{:2.0f}'.format(popt[0])+' [days]')#'\u221D'
-plt.plot(phases[0:-1],ConvLC(np.sort(phases[0:-1]),*par_init),linewidth=1,c='r',label='model light curve')#, dm15='+str(LCtable['dm15'][tbl_ind]),c='r')
-#plt.xlabel('time [days]')
-plt.ylabel('Flux [ADU]')
-xfit_lim=np.array([-50,150])
-plt.xlim(xfit_lim)
-plt.gca().legend()
-ax3=ax2.twiny()
-xxx = ((xfit+popt[2])-0*popt[2])/slope
-xxx_lim = ((xfit_lim+popt[2])-1*popt[2])/slope
-plt.xlim(xxx_lim)
-plt.scatter(xxx,yfit,s=0,c='r')
-plt.xlabel('Distance from peak [arcsec]')
-
-ax4=plt.subplot2grid((2,2),(1,1),rowspan=1,sharex=ax2)
-#ax5=ax4.twiny()
-cntrs=FPdfLST[0].iloc[iii]['FP_Ac_bin_x'][::2] # arcsec
-cntrs_phs = (-cntrs)*slope+popt[2]
-bin_wid = np.mean(np.diff(cntrs))*slope # days
-FWHMoSIG = 2*np.sqrt(2*np.log(2))
-for i in np.arange(cntrs.shape[0]):
-    start = cntrs_phs[i]-bin_wid-3*dust_wid
-    stop = cntrs_phs[i]+bin_wid+3*dust_wid
-    x=np.linspace(start,stop,num=int((stop-start)/phs_res)+1)
-    y_rect = 1.0*(np.abs(x-cntrs_phs[i])<(bin_wid/2))
-    y = ndimage.gaussian_filter(y_rect,sigma=(dust_wid/FWHMoSIG)/phs_res)
-    plt.plot(x,y/y.max())
-plt.xlabel('Time from peak [days]')
-plt.ylabel('Weight [1]')
-
-fig.subplots_adjust(hspace=0)
-ax2.get_xaxis().set_visible(False)
-#start = 0-bin_wid-3*dust_wid
-#stop = 0+bin_wid+3*dust_wid
-#x=np.linspace(start,stop,num=int((stop-start)/phs_res)+1)
-#y_rect = 1.0*(np.abs(x-0*cntrs_phs[i])<(phs_res*2))
-#y = ndimage.gaussian_filter(y_rect,sigma=(dust_wid/FWHMoSIG)/phs_res)
-#plt.plot(x,y/y.max(),c='k',linewidth=1)
 # %%
 #from skimage.feature import masked_register_translation
 #inds=

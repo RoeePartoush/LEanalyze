@@ -16,6 +16,7 @@ import sys
 # import matplotlib import transforms
 import matplotlib.pyplot as plt
 import matplotlib.axes as pltax
+import matplotlib.transforms as mtransforms
 from scipy import ndimage
 import scipy.interpolate as spi
 from scipy.ndimage import gaussian_filter, median_filter, maximum_filter
@@ -175,6 +176,24 @@ def onrelease(event):
     press_bool=False; move=False
     return
 
+def im_norm_factor(HDU):
+    try:
+        factor = float(HDU.header['KSUM00'])
+    except Exception as e:
+        factor = 1.0
+    return factor
+
+def remove_most_frequent(mat):
+    mat = mat*1.0
+    a,b=np.unique(mat.flatten(),return_counts=True)
+    
+    ind=np.argmax(b)
+    value = a[ind]
+    #print(value)
+    
+    mat[mat==value] = np.nan
+    return mat
+
 def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None):
     global press_bool, move, first_click
     press_bool, move, first_click = False, False, True
@@ -192,25 +211,36 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
     maxFWHM = Angle(list(fitsDF['FWHM_ang'])).max()
 #    maxFWHM = maxFWHM+Angle(0.2,u.arcsec)
     last_mat = None
+    hdr_R = fitsDF.iloc[0]['Diff_HDU'].header
+    w_R = wcs.WCS(hdr_R)
     for ind in tqdm(np.arange(len(fitsDF))):
         if ind==len(fitsDF):
             last_mat = 1#REF_image
             print(ind)
             ind=ind-1
         HDU = fitsDF.iloc[ind]['Diff_HDU']
-        MaskMAT = fitsDF.iloc[ind]['Mask_mat']
-        NoiseMAT = fitsDF.iloc[ind]['Noise_mat']*1.0/float(HDU.header['KSUM00'])
+        # MaskMAT = fitsDF.iloc[ind]['Mask_mat']
+        # NoiseMAT = fitsDF.iloc[ind]['Noise_mat']*1.0/float(HDU.header['KSUM00'])
+        try:
+            MaskMAT = fitsDF.iloc[ind]['Mask_HDU'].data
+            NoiseMAT = fitsDF.iloc[ind]['Noise_HDU'].data
+        except Exception as e:
+            #print('\n***ERROR:*** '+str(e))
+            MaskMAT = np.zeros(HDU.data.shape)
+            NoiseMAT = np.zeros(HDU.data.shape)
+        NoiseMAT = NoiseMAT*1.0/im_norm_factor(HDU)#float(HDU.header['KSUM00'])
         NoiseMAT[~LEtb.mask2bool(MaskMAT,mode='suspicious')] = np.nan
 #        mat = NoiseMAT
         avg_noise = np.nanmean(NoiseMAT)
-        w = fitsDF.iloc[ind]['WCS_w']
+        w = w_R
+        # w = fitsDF.iloc[ind]['WCS_w']
 #        w = wcs.WCS(HDU.header)
         
         if figs is None:
             fig = plt.figure()
         else:
             fig = figs[ind]
-            fig.clear()
+            #fig.clear()
         fig.canvas.mpl_connect('key_press_event', press)
 #        global first_click, press_bool, move
 #        first_click = True
@@ -229,6 +259,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 #                ax_img.append(fig.add_subplot(211,projection=w))
 #                ax3_img.append(fig.add_subplot(212))
             else:
+                # ax_img.append(fig.add_subplot(111,projection=w))
                 ax_img.append(fig.add_subplot(111,sharex=ax_img[0],sharey=ax_img[0],projection=w))
 #                ax_img.append(fig.add_subplot(211,sharex=ax_img[0],sharey=ax_img[0],projection=w))
 #                ax3_img.append(fig.add_subplot(212,sharex=ax3_img[0],sharey=ax3_img[0]))
@@ -242,17 +273,19 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
             else:
                 ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,sharex=ax_img[0],sharey=ax_img[0],projection=w,fig=fig))
 #                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',sharex=ax2_img[0],sharey=ax2_img[0],sharez=ax2_img[0]))#,facecolor='black',fig=fig))
-                ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1,sharex=ax2_img[0],sharey=ax2_img[0],fig=fig))
+                ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1,sharex=ax2_img[0],fig=fig))
         
-        zptmag = fitsDF.iloc[ind]['ZPTMAG']
-        zpt_lin = np.power(10,-zptmag/2.5)
-        sig_adu_cal = HDU.header['SKYSIG']*zpt_lin
+        # zptmag = 1#fitsDF.iloc[ind]['ZPTMAG']
+        # zpt_lin = np.power(10,-zptmag/2.5)
+        # sig_adu_cal = HDU.header['SKYSIG']*zpt_lin
         if REF_image is not None:
-            mat = (LEtb.matchFWHM(fitsDF,ind,maxFWHM)*1.0/float(HDU.header['KSUM00'])) - REF_image
+            mat = (LEtb.matchFWHM(fitsDF,ind,maxFWHM)*1.0/im_norm_factor(HDU)) - REF_image
+            # mat = (LEtb.matchFWHM(fitsDF,ind,maxFWHM)*1.0/float(HDU.header['KSUM00'])) - REF_image
 #            mat = (HDU.data*1.0/float(HDU.header['KSUM00'])) - REF_image
 #            mat = HDU.data*1.0*zpt_lin - REF_image
         else:
-            mat = HDU.data*1.0/float(HDU.header['KSUM00'])
+            mat = HDU.data*1.0/im_norm_factor(HDU)
+            # mat = HDU.data*1.0/float(HDU.header['KSUM00'])
         if med_filt_size is not None:
             mat = median_filter(mat,size=med_filt_size)
 #            mat = mat[::med_filt_size,::med_filt_size]
@@ -266,14 +299,15 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 ##        mat = NoiseMAT*1.0/float(HDU.header['KSUM00'])#*zpt_lin
 ##        mat[mat<=-2*sig_adu_cal] = 0
 #                
-#        Zx = ndimage.sobel(mat,axis=1)/8
-#        Zy = ndimage.sobel(mat,axis=0)/8
-#        grad = np.sqrt(Zx**2+Zy**2)
+        Zx = ndimage.sobel(mat,axis=1)/8
+        Zy = ndimage.sobel(mat,axis=0)/8
+        # grad = np.sqrt(Zx**2+Zy**2)
 #        grad_thres=np.percentile(grad,99.5)
 #        mat[grad>grad_thres] = np.nan
-#        theta = np.arctan(Zy/Zx)*180/np.pi
+        theta = np.arctan2(Zy,Zx)*180/np.pi
 #        mat[np.logical_or(np.abs(np.abs(theta)-90)<5,np.abs(np.abs(theta)-0)<5)] = np.nan
 #        mat = ndimage.filters.laplace(mat)
+        mat = theta
         mat[~LEtb.mask2bool(MaskMAT)] = np.nan
 #        mat[~detect_peaks(NoiseMAT,MaskMAT)] = np.nan
         
@@ -297,11 +331,11 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 #        mat[np.abs(mat)<(2*NoiseMAT/float(HDU.header['KSUM00']))] = np.nan
 #        mat[mat<=0] = np.nan
 #        print(np.sum(~np.isnan(mat)))
-        clim = Zscale.get_limits(mat)#[-5*sig_adu_cal,5*sig_adu_cal]#
+        clim = Zscale.get_limits(remove_most_frequent(mat))#[-5*sig_adu_cal,5*sig_adu_cal]#
         plt.sca(ax_img[ind])
-#        ax_img[ind].set_facecolor((0.5*135/255,0.5*206/255,0.5*235/255))
+        ax_img[ind].set_facecolor((0.5*135/255,0.5*206/255,0.5*235/255))
 #        ax_img[ind].title.set_text(fitsDF.iloc[ind]['filename'])#+' / pipe_ver: '+str(fitsDF.iloc[ind]['pipe_ver']))
-        plt.gca().set_facecolor((0.5*135/255,0.5*206/255,0.5*235/255))
+        # plt.gca().set_facecolor((0.5*135/255,0.5*206/255,0.5*235/255))
         plt.gca().title.set_text(fitsDF.iloc[ind]['filename'])#+' / pi
         if last_mat is not None:
             print('HEYYYY!')
@@ -309,7 +343,28 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
             print(mat.shape)
             print('max:'+str(np.nanmax(mat))+', min:'+str(np.nanmin(mat)))
             mat = REF_image
-        plt.imshow(mat, vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none')
+        # im = ax_img[ind].imshow(mat,  origin='lower', cmap='gray', interpolation='none')
+        plt.imshow(mat,  vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none',extent=get_pix_extent(hdr_R,HDU.header))
+        # plt.imshow(mat, vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none')        
+        # a = np.eye(3)
+        # a[0:2,0:2] = w.wcs.cd / np.sqrt(np.abs(np.linalg.det(w.wcs.cd)))
+        # a_trans = mtransforms.Affine2D(a)
+        # b = np.eye(3)
+        # b[0:2,0:2] = w_R.wcs.cd / np.sqrt(np.abs(np.linalg.det(w_R.wcs.cd)))
+        # b_trans = mtransforms.Affine2D(b)
+        # im_trans = a_trans.inverted() + b_trans
+        # trans = im_trans + ax_img[ind].transData#(a_trans-mtransforms.Affine2D(b))
+        # # ex_trans = ax_img[ind].transData.inverted() + im_trans
+        # # trans = ax_img[ind].transData + (mtransforms.Affine2D(w.wcs.cd)-mtransforms.Affine2D(w_R.wcs.cd))
+        # print(ax_img[ind].transData.get_matrix())
+        # print(trans.get_matrix())
+        # extent = get_pix_extent(hdr_R,HDU.header)
+        # print(extent)
+        # corner1 = im_trans.inverted().transform(np.array([extent[0],extent[2]]))
+        # corner2 = im_trans.inverted().transform(np.array([extent[1],extent[3]]))
+        # print((corner1[0],corner2[0],corner1[1],corner2[1]))
+        # im.set_extent((corner1[0],corner2[0],corner1[1],corner2[1]))
+        # im.set_transform(trans)
         plt.grid(color='white', ls='solid')
         
 #        imshow_Xcorr(fitsDF, 0, ind)
@@ -352,7 +407,8 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
                     meansig = np.nanmean(np.abs(yyerr))
 #                    tmp_sct.append(plt.scatter(xx,np.ones(xx.shape)*i*2,s=1,c=yy,cmap='jet'))
 #                    plt.scatter(prof_sampDF_lst[i].iloc[ind]['Peak_ProjAng_arcsec'],i*2,s=2,c='m',cmap='jet')
-                    ylim_tmp = [min(ylim_tmp[0],np.nanmin(yy)-3*meansig), max(ylim_tmp[1],np.nanmax(yy)+3*meansig)]
+                    # ylim_tmp = [min(ylim_tmp[0],np.nanmin(yy)-3*meansig), max(ylim_tmp[1],np.nanmax(yy)+3*meansig)]
+                    # ylim_tmp = [np.nanpercentile(yy, 0)-3*meansig, np.nanpercentile(yy, 90)+3*meansig]
                     plt.scatter(x.arcsec,y,s=1,vmax=2,vmin=0, cmap='jet', label='flux samples')#,c=np.abs((y-yBref)/stdBref))
 #                    yyerr_skysig = np.zeros(yyerr.shape)
 #                    yyerr_skysig = np.divide(sig_adu_cal,np.sqrt(binCnt))
@@ -362,7 +418,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 #                    ax2_img[ind].scatter(x.arcsec,np.ones(x.shape)*i,y,s=0.1,c=np.abs((y-yBref)/stdBref),vmax=2,vmin=0, cmap='jet')
 #                    plt.xlabel('x')
 #                    plt.ylabel('y')
-                    ax2_img[ind].set_ylim(ylim_tmp[0],ylim_tmp[1])
+                    # ax2_img[ind].set_ylim(ylim_tmp[0],ylim_tmp[1])
                     plt.xlabel('[arcsec]')
                     plt.ylabel('flux [ADU]')
                     plt.gca().legend()
@@ -402,7 +458,7 @@ def light_curve(fitsDF, s_coords):
         zpt_lin = np.power(10,-fitsDF.iloc[i]['ZPTMAG']/2.5)
         sc_ind = 0
         for sc in s_coords:
-            sc_pix = w.wcs_world2pix(np.array([[sc.ra.deg, sc.dec.deg]]), 1)
+            sc_pix = w.wcs_world2pix(np.array([[sc.ra.deg, sc.dec.deg]]), 0)
             y[i,sc_ind] = HDU.data[sc_pix[0,1].round().astype(int),sc_pix[0,0].round().astype(int)]*zpt_lin
             sc_ind = sc_ind+1
     
@@ -517,17 +573,17 @@ def imshows_shifted(fitsDF,PA,app_mot,ref_ind=None,med_filt_size=None,share_ax=N
     ax_img=[]
     mat_lst=[]
     w_lst=[]
-    SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5') # Cas A
-#    SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5') # Tycho
+    # SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5') # Cas A
+    SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5') # Tycho
     for ind in tqdm(np.arange(len(fitsDF))):
         HDU = fitsDF.iloc[ind]['Diff_HDU']
 #        MaskMAT = fitsDF.iloc[ind]['Mask_mat']
-        mat = HDU.data*1.0/float(HDU.header['KSUM00'])
+        mat = HDU.data*1.0/im_norm_factor(HDU)
         if med_filt_size is not None:
             mat = median_filter(mat,size=med_filt_size)
         w = wcs.WCS(HDU.header)
         diff_mjd = (fitsDF.iloc[ind]['Idate'] - fitsDF.iloc[ref_ind]['Idate'])*u.day
-        FPcntr_world = w.wcs_pix2world(np.array([mat.shape[1],mat.shape[1]],ndmin=2)/2, 1)
+        FPcntr_world = w.wcs_pix2world(np.array([mat.shape[1],mat.shape[1]],ndmin=2)/2, 0)
         ra = Longitude(FPcntr_world[0,0],unit=u.deg)
         dec = Latitude(FPcntr_world[0,1],unit=u.deg)
         LE_sc = SkyCoord(ra, dec, frame='fk5')
@@ -561,7 +617,29 @@ def imshows_shifted(fitsDF,PA,app_mot,ref_ind=None,med_filt_size=None,share_ax=N
             mat_lst.append(mat)
             w_lst.append(w)
     if not plot_bl:
-        return np.stack(mat_lst,axis=2), w_lst
+        return mat_lst, w_lst#np.stack(mat_lst,axis=2)
+
+def calc_shifts(fitsDF,PA,app_mot,ref_ind=None):
+    if ref_ind is None:
+        ref_ind = int(len(fitsDF)/2)
+    shifts_lst = []
+    # SN_sc = SkyCoord('23h23m24s','+58°48.9′',frame='fk5') # Cas A
+    SN_sc = SkyCoord('0h25.3m','+64° 09′',frame='fk5') # Tycho
+    for ind in tqdm(np.arange(len(fitsDF))):
+        HDU = fitsDF.iloc[ind]['Diff_HDU']
+        w = wcs.WCS(HDU.header)
+        diff_mjd = (fitsDF.iloc[ind]['Idate'] - fitsDF.iloc[ref_ind]['Idate'])*u.day
+        FPcntr_world = w.wcs_pix2world(np.array([w.array_shape[0],w.array_shape[1]],ndmin=2)/2, 0)
+        ra = Longitude(FPcntr_world[0,0],unit=u.deg)
+        dec = Latitude(FPcntr_world[0,1],unit=u.deg)
+        LE_sc = SkyCoord(ra, dec, frame='fk5')
+        if PA is None:
+            PA = LE_sc.position_angle(SN_sc)+Angle(180,'deg')
+        _, FP_pa_pix_uv, FPlen_pix = LEtb.FPparams_world2pix(w, LE_sc, PA, Angle(-app_mot*diff_mjd))
+        shift = np.squeeze(FPlen_pix*FP_pa_pix_uv) # shift ~ ([x],[y])
+        shifts_lst.append(shift)
+    return shifts_lst
+
 
 def WCS_downsample(w,N,shape,inplace=False):
     if inplace:
@@ -584,27 +662,55 @@ def WCS_shift(w,shift_pix,inplace=False):
 
 
 class IndexTracker(object):
-    def __init__(self, ax, X, titles, w_lst):
+    def __init__(self, ax, X, titles, w_lst, shifts):
+        self.shifts = shifts
         self.Zscale = ZScaleInterval()
         self.titles = titles
         self.w_lst = w_lst
         self.ind = 0
+        self.w_0 = self.w_lst[0].deepcopy()
         self.curr_w = self.w_lst[self.ind].deepcopy()
-        self.clim = self.Zscale.get_limits(X[:,:,self.ind])
+        self.X = self.X2list(X)
+        curr_mat = self.X[self.ind] # X[:,:,self.ind]
+        self.clim = self.Zscale.get_limits(self.remove_most_frequent(curr_mat))
         if ax is not None:
             self.ax = ax
         else:
             self.ax = plt.subplot(111,projection=self.curr_w)
         self.ax.figure.canvas.mpl_connect('key_press_event', self.onpress)
-        self.X = X
-        rows, cols, self.slices = X.shape
-        self.im = self.ax.imshow(self.X[:, :, self.ind],vmin=self.clim[0],vmax=self.clim[1],cmap='gray')
+        self.slices = len(self.X)
+        self.im = self.ax.imshow(curr_mat,vmin=self.clim[0],vmax=self.clim[1],cmap='gray')
+        self.im.set_extent(get_pix_extent(self.w_0,self.curr_w))
+        plt.xlim(0,self.curr_w.array_shape[1])
+        plt.ylim(0,self.curr_w.array_shape[0])
         self.ax.grid(color='white', ls='solid')
         self.PixelTrans = wcs.WCS()#transforms.Affine2D()
         self.overlay = self.ax.get_coords_overlay(self.PixelTrans)
         self.overlay.grid(color='black', linestyle='solid', alpha=0.5)
         self.update()
-
+    
+    def X2list(self,X):
+        if isinstance(X,list):
+            return X
+        elif isinstance(X,np.ndarray):
+            X_lst = []
+            for i in np.arange(X.shape[2]):
+                X_lst.append(X[:,:,i])
+            return X_lst
+        else:
+            print('IndexTracker received neither a 3D np.ndarray nor a list of images, but a '+str(type(X)))
+            return None
+    
+    def remove_most_frequent(self,mat):
+        mat = mat*1.0
+        a,b=np.unique(mat.flatten(),return_counts=True)
+        
+        ind=np.argmax(b)
+        value = a[ind]
+                
+        mat[mat==value] = np.nan
+        return mat
+    
     def onscroll(self, event):
 #        print("%s %s" % (event.button, event.step))
         if event.button == 'up':
@@ -638,14 +744,83 @@ class IndexTracker(object):
         self.update()
 
     def update(self):
-        self.clim = self.Zscale.get_limits(self.X[:,:,self.ind])
+        curr_mat = self.X[self.ind]
+        self.clim = list(self.Zscale.get_limits(self.remove_most_frequent(curr_mat)))
+        span=self.clim[1]-self.clim[0]
+        self.clim[1] = self.clim[1]+1*span
 #        self.ax = plt.subplot(111,projection=self.w_lst[self.ind])
 #        self.im = ax.imshow(self.X[:, :, self.ind],vmin=self.clim[0],vmax=self.clim[1],cmap='gray')
 #        self.ax.set_ylabel('slice %s' % self.ind)
-        self.im.set_data(self.X[:, :, self.ind])
+        self.im.set_data(curr_mat)
         self.im.set_clim(self.clim[0],self.clim[1])
         self.ax.set_title(self.titles[self.ind])
-        self.curr_w.wcs.crpix = self.w_lst[self.ind].deepcopy().wcs.crpix
+        w_n = self.w_lst[self.ind].deepcopy()
+        new_extent = get_pix_extent_shifted(self.w_0, w_n, self.shifts[self.ind])
+        self.im.set_extent(new_extent)
+        # print(new_extent)
+        self.curr_w.wcs.crpix = self.w_0.wcs.crpix + pix2pix_vec(self.w_0, w_n, self.shifts[self.ind]) - pix2pix_vec(self.w_0, w_n, np.array([0,0]))# = self.w_0.wcs_world2pix(w_n.wcs_pix2world(w_n.wcs.crpix.reshape((1,2)),0),0).flatten()
 #        self.ax.set_transform(self.w_lst[self.ind])
 #        self.ax.grid(color='white', ls='solid')
+        # plt.xlim(0,self.curr_w.array_shape[1])
+        # plt.ylim(0,self.curr_w.array_shape[0])
         self.im.axes.figure.canvas.draw()
+
+def imshowMat(mat,w=None,shareaxFig=None):
+    Zscale = ZScaleInterval()
+    fig = plt.figure()
+    if w is not None:
+        if shareaxFig is not None:
+            fig.add_subplot(111,projection=w,sharex=shareaxFig.get_axes()[0],sharey=shareaxFig.get_axes()[0])
+        else:
+            fig.add_subplot(111,projection=w)
+        plt.grid(color='white', ls='solid')
+    clim = Zscale.get_limits(remove_most_frequent(mat))
+    plt.imshow(mat, vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none')
+    return
+
+def get_pix_extent(WoH_r,WoH_n): # WCS or HEADER of reference / new, respectively
+    wcs_r = WoH2W(WoH_r)
+    wcs_n = WoH2W(WoH_n)
+    nrows_n = wcs_n.array_shape[0]#hdr_n['NAXIS2']
+    ncols_n = wcs_n.array_shape[1]#hdr_n['NAXIS1']
+    
+    corner1 = wcs_r.wcs_world2pix(np.array(wcs_n.wcs_pix2world(0,0,0),ndmin=2),0)
+    corner2 = wcs_r.wcs_world2pix(np.array(wcs_n.wcs_pix2world(ncols_n,nrows_n,0),ndmin=2),0)
+    extent = (corner1[0,0], corner2[0,0], corner1[0,1], corner2[0,1])
+    return extent
+
+
+def get_pix_extent_shifted(WoH_r,WoH_n,shift): # WCS or HEADER of reference / new, respectively
+    wcs_r = WoH2W(WoH_r)
+    wcs_n = WoH2W(WoH_n)
+    nrows_n = wcs_n.array_shape[0]#hdr_n['NAXIS2']
+    ncols_n = wcs_n.array_shape[1]#hdr_n['NAXIS1']
+    
+    corner1 = pix2pix_vec(wcs_r, wcs_n, np.array([0,0])+shift)
+    corner2 = pix2pix_vec(wcs_r, wcs_n, np.array([ncols_n,nrows_n])+shift)
+    extent = (corner1[0], corner2[0], corner1[1], corner2[1])
+    return extent
+
+def pix2pix_vec(wcs_r, wcs_n, vec_n):
+    vec_r = wcs_r.wcs_world2pix(np.array(wcs_n.wcs_pix2world(vec_n[0],vec_n[1],0),ndmin=2),0).reshape((2,))
+    return vec_r
+
+def WoH2W(WoH):
+    if isinstance(WoH,wcs.WCS):
+        return WoH
+    elif isinstance(WoH,fits.header.Header):
+        return wcs.WCS(WoH)
+    else:
+        print('WoH2W received non WCS-able object of type '+str(type(WoH)))
+        return None
+
+def imshow_copy_figure(source_fig, target_fig, source_im_ind=0, alpha=1, alpha_adj=False):
+    source_im = source_fig.get_axes()[0].get_images()[source_im_ind]
+    mat = source_im.get_array()
+    extent = source_im.get_extent()
+    clim = ZScaleInterval().get_limits(mat)
+    target_ax = target_fig.get_axes()[0]
+    target_ax.get_images()[0].set_alpha(1-alpha)
+    target_ax.imshow(mat,vmin=clim[0],vmax=clim[1],cmap='gray',extent=extent, alpha=alpha)
+    return
+

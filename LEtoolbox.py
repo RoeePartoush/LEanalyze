@@ -8,7 +8,7 @@ Created on Mon Dec  2 12:06:02 2019
 
 import sys
 import numpy as np
-
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.axes as pltax
 
@@ -28,6 +28,22 @@ from astropy.coordinates import Angle, SphericalRepresentation, CartesianReprese
 from astropy import wcs
 from astropy.coordinates import SkyCoord
 
+import LEplots
+
+def getAavgDiff(DIFF_df):
+    images = []
+    ref_FWHM = Angle(list(DIFF_df['FWHM_ang'])).max()
+    for i in np.arange(len(DIFF_df)):
+        HDU = DIFF_df.iloc[i]['Diff_HDU']
+        try:
+            mask = DIFF_df.iloc[i]['Mask_HDU'].data
+        except Exception as e:
+            print('\n***ERROR:*** '+str(e))
+            mask = np.zeros(HDU.data.shape)
+        image = matchFWHM(DIFF_df,i,ref_FWHM)*1.0#/float(HDU.header['KSUM00'])
+        image[~mask2bool(mask)] = np.nan
+        images.append(image)
+    return np.mean(np.stack(images,axis=0), axis=0)
 
 def matchFWHM(DIFF_df,ind,ref_FWHM):
     image = DIFF_df.iloc[ind]['Diff_HDU'].data
@@ -38,14 +54,14 @@ def matchFWHM(DIFF_df,ind,ref_FWHM):
     image = gaussian_filter(image, sigma=gss_FWHM/(2*np.sqrt(2*np.log(2))))
     return image
 
-def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30, REF_image=None):
+def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30, REF_image=None, bin_OL = 0):
     FP_df_lst=[]
     maxFWHM = Angle(list(DIFF_df['FWHM_ang'])).max()
     print('maxFWHM='+str(maxFWHM.deg))
     images=[]
 #    inds_mask_lst=[]
     inds_intersect_lst=[]
-    for indS in np.arange(len(slitFPdf)):
+    for indS in tqdm(np.arange(len(slitFPdf))):
         print(indS)
         FPcntr_world = scalarize(slitFPdf.iloc[indS]['Orig'])
         FP_pa_world  = scalarize(slitFPdf.iloc[indS]['PA']       )
@@ -59,18 +75,31 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
                                                            'FP_Ac_bin_x', 'FP_Ac_bin_y', 'FP_Ac_bin_yerr',
                                                            'FP_Ac_bin_yBref', 'FP_Ac_bin_ystdBref','FP_Ac_bin_Cnt'])
         
-        for indD in np.arange(len(DIFF_df)):
+        for indD in tqdm(np.arange(len(DIFF_df))):
 #            image = DIFF_df.iloc[indD]['Diff_HDU'].data
-            header = DIFF_df.iloc[indD]['Diff_HDU'].header
-            mask = DIFF_df.iloc[indD]['Mask_mat']
-            noise = DIFF_df.iloc[indD]['Noise_mat']
+            HDU = DIFF_df.iloc[indD]['Diff_HDU']
+            header = HDU.header#DIFF_df.iloc[indD]['Diff_HDU'].header
+            # mask = DIFF_df.iloc[indD]['Mask_mat']
+            # noise = DIFF_df.iloc[indD]['Noise_mat']
+            # mask = DIFF_df.iloc[indD]['Mask_HDU'].data
+            # noise = DIFF_df.iloc[indD]['Noise_HDU'].data
+            try:
+                mask = DIFF_df.iloc[indD]['Mask_HDU'].data
+                noise = DIFF_df.iloc[indD]['Noise_HDU'].data
+            except Exception as e:
+                #print('\n***ERROR:*** '+str(e))
+                mask = np.zeros(HDU.data.shape)
+                noise = np.zeros(HDU.data.shape)
             
-            NoiseMAT = noise*1.0/float(header['KSUM00'])
+            NoiseMAT = noise*1.0/LEplots.im_norm_factor(HDU)
             NoiseMAT[~mask2bool(mask)] = np.nan
             avg_noise = np.nanmean(NoiseMAT)
             
             zptmag = DIFF_df.iloc[indD]['ZPTMAG']
-            FP_df.iloc[indD]['ZPTMAG'] = zptmag
+            if zptmag is not None:
+                FP_df.iloc[indD]['ZPTMAG'] = zptmag
+            else:
+                FP_df.iloc[indD]['ZPTMAG'] = 0
             w = wcs.WCS(header)
             
             if indS==0:
@@ -132,23 +161,23 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             FP_df.iloc[indD]['PixVec'] = pixVec
             FP_df.iloc[indD]['FluxProfile_ADU'] = flux
             FP_df.iloc[indD]['NoiseProfile_ADU'] = err
-            wrldCorners = w.wcs_pix2world(pixCorners,1)
-            wrldCntrs = w.wcs_pix2world(np.array(pixCntrs).reshape((len(pixCntrs),2)),1)
+            wrldCorners = w.wcs_pix2world(pixCorners,0)
+            wrldCntrs = w.wcs_pix2world(np.array(pixCntrs).reshape((len(pixCntrs),2)),0)
             
             if flux is not None:
-                wrldVec = w.wcs_pix2world(pixVec,1)
+                wrldVec = w.wcs_pix2world(pixVec,0)
                 wrldProj = pix2ang(w,pixProj)
                 if REF_image is not None:
 #                    print(header['KSUM00'])
-                    flux_cal = (flux/float(header['KSUM00'])) - REF_image.flatten()[inds_intersect]#[boolind_mat]
+                    flux_cal = (flux/LEplots.im_norm_factor(HDU)) - REF_image.flatten()[inds_intersect]#[boolind_mat]
 #                    print(np.sum(~np.isnan(flux_cal)))
 #                    flux_cal = flux*np.power(10,-zptmag/2.5) - REF_image[boolind_mat]
                 else:
-                    flux_cal = flux/float(header['KSUM00'])#*np.power(10,-zptmag/2.5)
-                err_cal = err/float(header['KSUM00'])
-                flux_mag = -2.5*np.log10(flux) + zptmag
-                xx, yy, yyerr, yBref, stdBref, binCnt = prof_bins(wrldProj.arcsec,flux_cal,FPlen_world.arcsec,N=N_bins,OL=0.5)
-                err_xx, err_yy, err_yyerr, err_yBref, err_stdBref, err_binCnt = prof_bins(wrldProj.arcsec,err_cal,FPlen_world.arcsec,N=N_bins,OL=0.5)
+                    flux_cal = flux/LEplots.im_norm_factor(HDU)#*np.power(10,-zptmag/2.5)
+                err_cal = err/LEplots.im_norm_factor(HDU)
+                flux_mag = -2.5*np.log10(flux) + FP_df.iloc[indD]['ZPTMAG']
+                xx, yy, yyerr, yBref, stdBref, binCnt = prof_bins(wrldProj.arcsec,flux_cal,FPlen_world.arcsec,N=N_bins,OL=bin_OL)
+                err_xx, err_yy, err_yyerr, err_yBref, err_stdBref, err_binCnt = prof_bins(wrldProj.arcsec,err_cal,FPlen_world.arcsec,N=N_bins,OL=bin_OL)
                 
 #                abnormal_inds = yyerr>(3*err_yy/np.sqrt(binCnt))
 #                abnormal_inds = np.logical_or(abnormal_inds,binCnt<0.5*np.nanmax(binCnt))
@@ -236,7 +265,7 @@ def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pi
 
 def FPparams_world2pix(w, FPcntr_world, FP_pa_world, FPlen_world):
     
-    FPcntr_pix = w.wcs_world2pix(np.array([[FPcntr_world.ra.deg, FPcntr_world.dec.deg]]), 1)
+    FPcntr_pix = w.wcs_world2pix(np.array([[FPcntr_world.ra.deg, FPcntr_world.dec.deg]]), 0)
     
     FPlen_pix = ang2pix(w, FPlen_world)
     
@@ -245,13 +274,13 @@ def FPparams_world2pix(w, FPcntr_world, FP_pa_world, FPlen_world):
     
     FPcntr_world_car = FPcntr_world.represent_as(CartesianRepresentation)
     FPcntr_pa_US = (FPcntr_world_car + pix2ang(w,1).rad*(np.sin(FP_pa_world.rad)*RA_uv + np.cos(FP_pa_world.rad)*DEC_uv)).represent_as(UnitSphericalRepresentation)
-    FP_pa_pix_uv = normalize(w.wcs_world2pix(np.array([[FPcntr_pa_US.lon.deg,FPcntr_pa_US.lat.deg]]),1) - FPcntr_pix)
+    FP_pa_pix_uv = normalize(w.wcs_world2pix(np.array([[FPcntr_pa_US.lon.deg,FPcntr_pa_US.lat.deg]]),0) - FPcntr_pix)
     
     return FPcntr_pix, FP_pa_pix_uv, FPlen_pix
 
 
 
-def mask2bool(mask,mode='suspicious'): 
+def mask2bool(mask,mode='safe'): 
     if mode=='safe':
         boolmat = mask==0 # only "safe" pixels
     elif mode=='suspicious':
@@ -270,6 +299,8 @@ def addPeakLoc(FP_df_lst,method='argmax'):
         if method=='argmax':
             col_ind = FP_df_lst[k].columns.get_loc('Peak_ProjAng_arcsec')
             for i in np.arange(len(FP_df_lst[k])):
+                if FP_df_lst[k].iloc[i]['FP_Ac_bin_y'] is None:
+                    continue
                 print('i='+str(i))
                 print(FP_df_lst[k].iloc[i]['FP_Ac_bin_y'].shape)
                 print(np.nanargmax(FP_df_lst[k].iloc[i]['FP_Ac_bin_y']))
