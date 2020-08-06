@@ -69,7 +69,7 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
         
 #        if indS>0:
 #            del FP_df
-        FP_df = pd.DataFrame(index=DIFF_df.index, columns=['WrldVec','PixVec','ProjAng','WrldWidth','WrldCorners','WrldCntrs',
+        FP_df = pd.DataFrame(index=DIFF_df.index, columns=['WrldVec','PixVec','ProjAng','PerpAng','WrldWidth','WrldCorners','WrldCntrs',
                                                            'FluxProfile_ADU','FluxProfile_ADUcal','FluxProfile_MAG',
                                                            'NoiseProfile_ADU','ZPTMAG',
                                                            'FP_Ac_bin_x', 'FP_Ac_bin_y', 'FP_Ac_bin_yerr',
@@ -138,7 +138,7 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             else:
                 width_pix = ang2pix(w, width)
                 FP_df.iloc[indD]['WrldWidth'] = width
-            flux, err, pixVec, pixProj, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
+            flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
 #            if indD==0:
 #                flux, err, pixVec, pixProj, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
 #                inds_wcs = np.ravel_multi_index(np.where(boolind_mat_wcs),boolind_mat_wcs.shape)
@@ -167,6 +167,7 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             if flux is not None:
                 wrldVec = w.wcs_pix2world(pixVec,0)
                 wrldProj = pix2ang(w,pixProj)
+                wrldPerp = pix2ang(w,pixPerp)
                 if REF_image is not None:
 #                    print(header['KSUM00'])
                     flux_cal = (flux/LEplots.im_norm_factor(HDU)) - REF_image.flatten()[inds_intersect]#[boolind_mat]
@@ -198,6 +199,7 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             
             FP_df.iloc[indD]['WrldVec'] = wrldVec
             FP_df.iloc[indD]['ProjAng'] = wrldProj
+            FP_df.iloc[indD]['PerpAng'] = wrldPerp
             FP_df.iloc[indD]['FluxProfile_ADUcal'] = flux_cal
             FP_df.iloc[indD]['FluxProfile_MAG'] = flux_mag
             FP_df.iloc[indD]['WrldCorners'] = wrldCorners
@@ -243,12 +245,12 @@ def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pi
     
     dotprod_mat = v_X*FP_pa_pix_uv[0] + v_Y*FP_pa_pix_uv[1]
     
-    distvec_X = v_X - dotprod_mat*FP_pa_pix_uv[0]
-    distvec_Y = v_Y - dotprod_mat*FP_pa_pix_uv[1]
+    dist_mat = v_X*FP_pa_pix_uv_perp[0] + v_Y*FP_pa_pix_uv_perp[1]
+    # distvec_X = v_X - dotprod_mat*FP_pa_pix_uv[0]
+    # distvec_Y = v_Y - dotprod_mat*FP_pa_pix_uv[1]
+    # dist_mat = np.sqrt(distvec_X**2 + distvec_Y**2)
     
-    dist_mat = np.sqrt(distvec_X**2 + distvec_Y**2)
-    
-    boolind_mat_wcs = np.logical_and(dist_mat<(width_pix/2), np.abs(dotprod_mat)<(FPlen_pix/2))
+    boolind_mat_wcs = np.logical_and(np.abs(dist_mat)<(width_pix/2), np.abs(dotprod_mat)<(FPlen_pix/2))
     boolind_mat = np.logical_and(mask2bool(mask),boolind_mat_wcs)
     
     if np.any(boolind_mat.flatten()):
@@ -256,10 +258,11 @@ def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pi
         err = noise[boolind_mat]
         pixVec = np.concatenate((np.reshape(Xmat[boolind_mat],(flux.size,1)),np.reshape(Ymat[boolind_mat],(flux.size,1))),axis=1)
         pixProj = dotprod_mat[boolind_mat]
+        pixPerp = dist_mat[boolind_mat]
     else:
         flux, err, pixVec, pixProj = [None, None, None, None]
     
-    return flux, err, pixVec, pixProj, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs
+    return flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs
 
 
 

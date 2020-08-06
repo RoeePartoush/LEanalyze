@@ -167,8 +167,8 @@ def LCgrid_eval(LCfunc,phs_wid,phs_res,phases_p):
     FWHMoSIG = 2*np.sqrt(2*np.log(2))
     
     phs_sigma = phs_wid/FWHMoSIG
-    max_ph = np.nanmax(phases_p)-1+phs_sigma*3
-    min_ph = np.nanmin(phases_p)-1-phs_sigma*3
+    max_ph = np.nanmax(phases_p)+phs_sigma*3
+    min_ph = np.nanmin(phases_p)-phs_sigma*3
 #    print('max_ph = '+str(max_ph)+'\n')
 #    print('min_ph = '+str(min_ph)+'\n')
     x_p = np.linspace(min_ph,max_ph,np.ceil((max_ph-min_ph)/phs_res).astype(int)+1)

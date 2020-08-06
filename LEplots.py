@@ -110,15 +110,15 @@ def onclick(event):
     ix, iy = event.xdata, event.ydata
     if (ix is None) or (iy is None):
         return
-    w_ind = 0#event.inaxes.figure.number -1#plt.gcf().number -1
-#    w=wcs_list[w_ind]
-    w = g_DIFF_df.iloc[w_ind]['WCS_w']
+    # w_ind = 0#event.inaxes.figure.number -1#plt.gcf().number -1
+    # w=wcs_list[w_ind]
+    indDF=np.argwhere((g_DIFF_df['filename']==event.inaxes.title.get_text()).to_numpy())[0,0]
+    w = g_DIFF_df.iloc[indDF]['WCS_w']
     coord_tmp = Angle(w.wcs_pix2world(np.array([ix,iy],ndmin=2),0),u.deg)[0]
     #    print('FC: '+str(first_click))
     if first_click:
         first_ax = event.inaxes
         print('\n\n'+event.inaxes.title.get_text())
-        indDF=np.argwhere((g_DIFF_df['filename']==event.inaxes.title.get_text()).to_numpy())[0,0]
         print(indDF)
         g_DIFF_df.iloc[indDF]['coords_list'].append(np.array([coord_tmp[0].deg,coord_tmp[1].deg],ndmin=2))
         print('==================================\nPixel_1: x = %d, y = %d'%(ix, iy))
@@ -194,7 +194,7 @@ def remove_most_frequent(mat):
     mat[mat==value] = np.nan
     return mat
 
-def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None):
+def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None, peaks_locs=None):
     global press_bool, move, first_click
     press_bool, move, first_click = False, False, True
     global g_cl
@@ -232,8 +232,9 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
         NoiseMAT[~LEtb.mask2bool(MaskMAT,mode='suspicious')] = np.nan
 #        mat = NoiseMAT
         avg_noise = np.nanmean(NoiseMAT)
-        w = w_R
-        # w = fitsDF.iloc[ind]['WCS_w']
+        # w = w_R
+        w = fitsDF.iloc[ind]['WCS_w'].deepcopy()
+        # w.wcs.crpix = w_R.wcs_world2pix(w.wcs_pix2world(w.wcs.crpix.reshape((1,2)),1).reshape((1,2)),1).reshape((2,))
 #        w = wcs.WCS(HDU.header)
         
         if figs is None:
@@ -260,7 +261,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 #                ax3_img.append(fig.add_subplot(212))
             else:
                 # ax_img.append(fig.add_subplot(111,projection=w))
-                ax_img.append(fig.add_subplot(111,sharex=ax_img[0],sharey=ax_img[0],projection=w))
+                ax_img.append(fig.add_subplot(111,projection=w))#,sharex=ax_img[0],sharey=ax_img[0]))
 #                ax_img.append(fig.add_subplot(211,sharex=ax_img[0],sharey=ax_img[0],projection=w))
 #                ax3_img.append(fig.add_subplot(212,sharex=ax3_img[0],sharey=ax3_img[0]))
         else:
@@ -271,7 +272,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
                 if fluxSpace=='MAG': 
                     ax2_img[ind].invert_yaxis()
             else:
-                ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,sharex=ax_img[0],sharey=ax_img[0],projection=w,fig=fig))
+                ax_img.append(plt.subplot2grid((3,1),(0,0),rowspan=2,projection=w,fig=fig))#,sharex=ax_img[0],sharey=ax_img[0]))
 #                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',sharex=ax2_img[0],sharey=ax2_img[0],sharez=ax2_img[0]))#,facecolor='black',fig=fig))
                 ax2_img.append(plt.subplot2grid((3,1),(2,0),rowspan=1,sharex=ax2_img[0],fig=fig))
         
@@ -279,7 +280,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
         # zpt_lin = np.power(10,-zptmag/2.5)
         # sig_adu_cal = HDU.header['SKYSIG']*zpt_lin
         if REF_image is not None:
-            mat = (LEtb.matchFWHM(fitsDF,ind,maxFWHM)*1.0/im_norm_factor(HDU)) - REF_image
+            mat = (LEtb.matchFWHM(fitsDF,ind,maxFWHM)*1.0/im_norm_factor(HDU))# - REF_image
             # mat = (LEtb.matchFWHM(fitsDF,ind,maxFWHM)*1.0/float(HDU.header['KSUM00'])) - REF_image
 #            mat = (HDU.data*1.0/float(HDU.header['KSUM00'])) - REF_image
 #            mat = HDU.data*1.0*zpt_lin - REF_image
@@ -299,15 +300,15 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
 ##        mat = NoiseMAT*1.0/float(HDU.header['KSUM00'])#*zpt_lin
 ##        mat[mat<=-2*sig_adu_cal] = 0
 #                
-        Zx = ndimage.sobel(mat,axis=1)/8
-        Zy = ndimage.sobel(mat,axis=0)/8
-        # grad = np.sqrt(Zx**2+Zy**2)
-#        grad_thres=np.percentile(grad,99.5)
-#        mat[grad>grad_thres] = np.nan
-        theta = np.arctan2(Zy,Zx)*180/np.pi
-#        mat[np.logical_or(np.abs(np.abs(theta)-90)<5,np.abs(np.abs(theta)-0)<5)] = np.nan
-#        mat = ndimage.filters.laplace(mat)
-        mat = theta
+#         Zx = ndimage.sobel(mat,axis=1)/8
+#         Zy = ndimage.sobel(mat,axis=0)/8
+#         # grad = np.sqrt(Zx**2+Zy**2)
+# #        grad_thres=np.percentile(grad,99.5)
+# #        mat[grad>grad_thres] = np.nan
+#         theta = np.arctan2(Zy,Zx)*180/np.pi
+# #        mat[np.logical_or(np.abs(np.abs(theta)-90)<5,np.abs(np.abs(theta)-0)<5)] = np.nan
+# #        mat = ndimage.filters.laplace(mat)
+#         mat = theta
         mat[~LEtb.mask2bool(MaskMAT)] = np.nan
 #        mat[~detect_peaks(NoiseMAT,MaskMAT)] = np.nan
         
@@ -344,7 +345,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
             print('max:'+str(np.nanmax(mat))+', min:'+str(np.nanmin(mat)))
             mat = REF_image
         # im = ax_img[ind].imshow(mat,  origin='lower', cmap='gray', interpolation='none')
-        plt.imshow(mat,  vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none',extent=get_pix_extent(hdr_R,HDU.header))
+        plt.imshow(mat,  vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none')#,extent=get_pix_extent(hdr_R,HDU.header))
         # plt.imshow(mat, vmin=clim[0], vmax=clim[1], origin='lower', cmap='gray', interpolation='none')        
         # a = np.eye(3)
         # a[0:2,0:2] = w.wcs.cd / np.sqrt(np.abs(np.linalg.det(w.wcs.cd)))
@@ -422,6 +423,12 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
                     plt.xlabel('[arcsec]')
                     plt.ylabel('flux [ADU]')
                     plt.gca().legend()
+                    if peaks_locs is not None:
+                        peak_offset = peaks_locs[ind,1]
+                        peak_err = peaks_locs[ind,2]
+                        ax2_img[ind].axvline(x=peak_offset,color='r')
+                        ax2_img[ind].axvline(x=peak_offset+peak_err,color='orange')
+                        ax2_img[ind].axvline(x=peak_offset-peak_err,color='orange')
 #                    plt.ylim(np.percentile(y,1),np.percentile(y,99.999))
 #            plt.gca().set_aspect('equal', adjustable='box')
 #            for i in np.arange(len(prof_sampDF_lst)):
@@ -430,8 +437,20 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
         if profDF is not None: 
             plt.sca(ax_img[ind])
             for s_coord in profDF['Orig']:
-                plt.scatter(s_coord.ra.degree, s_coord.dec.degree, s=10,color='b', transform = ax_img[ind].get_transform('world'))    
-        
+                plt.scatter(s_coord.ra.degree, s_coord.dec.degree, s=10,color='b', transform = ax_img[ind].get_transform('world'))
+                if peaks_locs is not None:
+                    peak_offset = peaks_locs[ind,1]
+                    peak_err = peaks_locs[ind,2]
+                    
+                    slit_PA = profDF.iloc[0]['PA']
+                    peak_coord = s_coord.directional_offset_by(slit_PA,Angle(peak_offset,u.arcsec))
+                    plt.scatter(peak_coord.ra.degree, peak_coord.dec.degree, s=10,color='r', transform = ax_img[ind].get_transform('world'))
+                    
+                    peak_err1 = peak_coord.directional_offset_by(slit_PA,Angle(peak_err,u.arcsec))
+                    peak_err2 = peak_coord.directional_offset_by((slit_PA+Angle(180,'deg')).wrap_at('360d'),Angle(peak_err,u.arcsec))
+                    peak_err = SkyCoord((peak_err1,peak_err2))
+                    plt.plot(peak_err.ra.degree, peak_err.dec.degree,color='r', transform = ax_img[ind].get_transform('world'))
+                    
     return
 
 def imshow_Xcorr(fitsDF, ind1, ind2):
@@ -820,7 +839,26 @@ def imshow_copy_figure(source_fig, target_fig, source_im_ind=0, alpha=1, alpha_a
     extent = source_im.get_extent()
     clim = ZScaleInterval().get_limits(mat)
     target_ax = target_fig.get_axes()[0]
-    target_ax.get_images()[0].set_alpha(1-alpha)
+    # target_ax.get_images()[0].set_alpha(1-alpha)
     target_ax.imshow(mat,vmin=clim[0],vmax=clim[1],cmap='gray',extent=extent, alpha=alpha)
+    return
+
+def match_zoom_wcs(figs, wcs_list, center_coord, RA_span, DEC_span):
+    PA = Angle(np.arctan(RA_span.rad/DEC_span.rad),u.rad)
+    Diag_span = Angle(np.hypot(RA_span.rad,DEC_span.rad),u.rad)
+    corner1_world = center_coord.directional_offset_by(PA,Diag_span/2)
+    corner2_world = center_coord.directional_offset_by((PA+Angle(180,u.deg)).wrap_at('360d'),Diag_span/2)
+    for i in np.arange(len(figs)):
+        fig = figs[i]
+        w = wcs_list[i]
+        
+        ax = fig.get_axes()[0]
+        corner1_pix = corner1_world.to_pixel(w)
+        corner2_pix = corner2_world.to_pixel(w)
+        
+        x_bnds = (corner1_pix[0], corner2_pix[0])
+        y_bnds = (corner1_pix[1], corner2_pix[1])
+        ax.set_xlim(np.min(x_bnds), np.max(x_bnds))
+        ax.set_ylim(np.min(y_bnds), np.max(y_bnds))
     return
 
