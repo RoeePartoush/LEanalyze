@@ -184,7 +184,7 @@ for mng in managers: mng.window.showMaximized()
 LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures)
 #%%
 plt.close('all')
-LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=None,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#,peaks_locs=b)
+LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=None,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN',peaks_locs=b)
 # %
 figures=[manager.canvas.figure for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 w_s = DIFF_df['WCS_w'].to_list()
@@ -196,7 +196,7 @@ LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'],slitFPdf.iloc[0]['Le
 #     ax.set_xlim(5,40)
 #     ax.set_ylim(-50,150)
 # %%
-ams = [0.062]#,0.09,0.02]
+ams = [0.07]#[0.06]#,0.09,0.02]
 # PA = Angle(130,'deg')
 PA = Angle(151,'deg')
 shifts_lst=[]
@@ -558,9 +558,9 @@ b=np.array(#[56453.45805556, 14.9702, 0.5],
             # [56654.240457	,29.316,  0.5],
             [56715.12659722,    30.75, 1]]) #30.9705, 0.5]])
 # %%
-x = b[:,0]*1.0
-y = b[:,1]*1.0
-yerr = b[:,2]*1.0
+x = b[0:3,0]*1.0
+y = b[0:3,1]*1.0
+yerr = b[0:3,2]*1.0
 
 plt.figure()
 plt.errorbar(x,y,yerr=yerr,label='data',fmt='none',capsize=5)
@@ -608,7 +608,7 @@ Zscale = ZScaleInterval()
 figures=[manager.canvas.figure for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 for fig in tqdm(figures):
     # print('Fig. no.: '+str(fig.number))
-    if fig.number>=0:#6e6:
+    if fig.number>=1:#6e6:
         for ax in fig.get_axes():
             # print(ax.title.get_text())
             for im in ax.get_images():
@@ -626,7 +626,7 @@ for fig in tqdm(figures):
     #            elif pchr=='d':
     #                inc = inc
                 span=clim[1]-clim[0]
-                im.set_clim(clim[0],clim[1]+0.5*span)
+                im.set_clim(clim[0],clim[1]+15*span)
             fig.canvas.draw()
 
 # %%

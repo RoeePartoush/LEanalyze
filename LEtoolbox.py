@@ -161,11 +161,11 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             FP_df.iloc[indD]['PixVec'] = pixVec
             FP_df.iloc[indD]['FluxProfile_ADU'] = flux
             FP_df.iloc[indD]['NoiseProfile_ADU'] = err
-            wrldCorners = w.wcs_pix2world(pixCorners,0)
-            wrldCntrs = w.wcs_pix2world(np.array(pixCntrs).reshape((len(pixCntrs),2)),0)
+            wrldCorners = w.wcs_pix2world(pixCorners,1)
+            wrldCntrs = w.wcs_pix2world(np.array(pixCntrs).reshape((len(pixCntrs),2)),1)
             
             if flux is not None:
-                wrldVec = w.wcs_pix2world(pixVec,0)
+                wrldVec = w.wcs_pix2world(pixVec,1)
                 wrldProj = pix2ang(w,pixProj)
                 wrldPerp = pix2ang(w,pixPerp)
                 if REF_image is not None:

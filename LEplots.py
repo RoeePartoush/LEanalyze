@@ -194,7 +194,7 @@ def remove_most_frequent(mat):
     mat[mat==value] = np.nan
     return mat
 
-def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None, peaks_locs=None):
+def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None, peaks_locs=None, crest_lines=None):
     global press_bool, move, first_click
     press_bool, move, first_click = False, False, True
     global g_cl
@@ -438,11 +438,12 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
             plt.sca(ax_img[ind])
             for s_coord in profDF['Orig']:
                 plt.scatter(s_coord.ra.degree, s_coord.dec.degree, s=10,color='b', transform = ax_img[ind].get_transform('world'))
+                slit_PA = profDF.iloc[0]['PA']
+                slit_PA_perp = Angle(profDF.iloc[0]['PA'] + Angle(90,u.deg)).wrap_at('360d')
                 if peaks_locs is not None:
                     peak_offset = peaks_locs[ind,1]
                     peak_err = peaks_locs[ind,2]
                     
-                    slit_PA = profDF.iloc[0]['PA']
                     peak_coord = s_coord.directional_offset_by(slit_PA,Angle(peak_offset,u.arcsec))
                     plt.scatter(peak_coord.ra.degree, peak_coord.dec.degree, s=10,color='r', transform = ax_img[ind].get_transform('world'))
                     
@@ -450,7 +451,20 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, FullScreen=False, fluxSpa
                     peak_err2 = peak_coord.directional_offset_by((slit_PA+Angle(180,'deg')).wrap_at('360d'),Angle(peak_err,u.arcsec))
                     peak_err = SkyCoord((peak_err1,peak_err2))
                     plt.plot(peak_err.ra.degree, peak_err.dec.degree,color='r', transform = ax_img[ind].get_transform('world'))
-                    
+                if crest_lines is not None:
+                    x1, y1 = crest_lines[ind,0,0:2]
+                    x2, y2 = crest_lines[ind,1,0:2]
+                    crest_line1 = s_coord.directional_offset_by(slit_PA,Angle(x1,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y1,u.arcsec))
+                    crest_line2 = s_coord.directional_offset_by(slit_PA,Angle(x2,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y2,u.arcsec))
+                    crest_line = SkyCoord((crest_line1,crest_line2))
+                    plt.plot(crest_line.ra.degree, crest_line.dec.degree,color='r', transform = ax_img[ind].get_transform('world'))
+                
+                x1, y1 = -9,0
+                x2, y2 = 9,0
+                crest_line1 = s_coord.directional_offset_by(slit_PA,Angle(x1,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y1,u.arcsec))
+                crest_line2 = s_coord.directional_offset_by(slit_PA,Angle(x2,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y2,u.arcsec))
+                crest_line = SkyCoord((crest_line1,crest_line2))
+                plt.plot(crest_line.ra.degree, crest_line.dec.degree,color='b', transform = ax_img[ind].get_transform('world'))
     return
 
 def imshow_Xcorr(fitsDF, ind1, ind2):
