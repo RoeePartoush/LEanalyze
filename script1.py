@@ -31,6 +31,7 @@ from scipy.ndimage import gaussian_filter
 import pandas as pd
 import re
 import os
+get_ipython().run_line_magic('matplotlib', 'qt')
 
 #%%
 plt.close('all')
@@ -114,7 +115,7 @@ decs = []#np.array([],ndmin=2).astype(int)
 ras = []#np.array([],ndmin=2).astype(int)
 home_dir = 'https://stsci-transients.stsci.edu/atlas/cand/ROEE/'#'/Users/roeepartoush/Downloads/TYC2116/TEMP/'#'https://stsci-transients.stsci.edu/atlas/cand/ROEE/TEMP2/'#'/Users/roeepartoush/Downloads/ZZZ/zzz/'#'/Users/roeepartoush/Downloads/STScI/STUFF/tmp_download/'
 
-tmpDF = lstDF.iloc[np.logical_and(np.array(lstDF['DEC'])==60,np.array(lstDF['RA'])==352)] 
+tmpDF = lstDF.iloc[np.logical_and(np.logical_and(np.array(lstDF['DEC'])==-28,np.array(lstDF['RA'])==257),np.array(lstDF['MJD'])>=8400)] 
 #tmpDF = lstDF.iloc[np.array(lstDF['DEC'])==-36]
 for i in np.arange(len(tmpDF)):
     image_files.append(tmpDF.iloc[i]['flnms'][0:22])#+'.fits')
@@ -784,7 +785,12 @@ plt.scatter(RAvec, DECvec, s=1, c=VALvec, transform = plt.gca().get_transform('w
 
 # %%
 
-lst = ['dec-04/031-04.58400.wp.fits',
+lst = ['dec-28/257-28.58400.wp.fits',
+'dec-28/257-28.58500.wp.fits',
+'dec-28/257-28.58550.wp.fits',
+'dec-28/257-28.58600.wp.fits',
+'dec-28/257-28.58650.wp.fits',
+'dec-04/031-04.58400.wp.fits',
 'dec-04/031-04.58450.wp.fits',
 'dec-04/031-04.58500.wp.fits',
 'dec-04/031-04.58650.wp.fits',

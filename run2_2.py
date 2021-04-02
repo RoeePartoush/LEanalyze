@@ -53,11 +53,11 @@ LCtable = F2D.LightCurves(LCs_file)
 # ========== LOAD FITS FILES ==========
 
 files=[]
-# 
-# root=''#'/Users/roeepartoush/Documents/Research/Data/DOWNLOAD/'
+
+# roots=['/Users/roeepartoush/Documents/Research/Data/DOWNLOAD/']
 # get_ipython().run_line_magic('gui', 'tk')
 # filenames = askopenfiles(
-#             initialdir=root,
+#             initialdir=roots[0],
 #             title='Choose a fits file',
 #             filetypes=[("fits files", "*.fits")],
 #             mode="r"
@@ -73,7 +73,7 @@ files=[]
 #     flnm.close()
 
 if not files:
-    # filenames =[#'20120118/tyc4419_tyc4519_20120118_coadd.fits',
+    filenames =[#'20120118/tyc4419_tyc4519_20120118_coadd.fits',
                 # '20120626/tyc4419_tyc4519_20120626_coadd.fits',
                 # 'KECK/tyc4419_1.R.r120918_0182_4.hdrfix_CORRECTED_DEG_MJD.sw._NOT_REALLY_coadd.fits',
                 # '20130109/tyc4419_tyc4519_20130109_coadd.fits',
@@ -81,35 +81,15 @@ if not files:
                 # '20130826/tyc4419_tyc4519_20130826_coadd.fits',
                 # 'KECK/tyc4419_1_DEIMOS_5_6_coadd.fits',
                 # '20131202/tyc4419_tyc4519_20131202_coadd.fits',
-                # 'KECK/tyc4419_1_g_LRIS_131228_coadd.fits',
-                # 'KECK/tyc4419_1_R_LRIS_131228_coadd.fits']
+                'KECK/tyc4419_1_g_LRIS_131228_coadd.fits',
+                'KECK/tyc4419_1_R_LRIS_131228_coadd.fits']
                 # '20140226/tyc4419_tyc4519_20140226_coadd.fits']
                 # '20140531/tyc4419_tyc4519_20140531_coadd.fits',
                 # '20140621/tyc4419_tyc4519_20140621_coadd.fits',
                 # '20140827/tyc4419_tyc4519_20140827_coadd.fits']
                 # '20140923/tyc4419_tyc4519_20140923_coadd.fits'] 
     root = '/Users/roeepartoush/Documents/Research/Data/swarp_test/tycA1/'
-    # filenames=['20130826/tyc4419_tyc4519_20130826_coadd.fits',
-    #              'KECK/tyc4419_1_DEIMOS_5_6_coadd.fits',
-    #              '20131202/tyc4419_tyc4519_20131202_coadd.fits',
-    #              'KECK/tyc4419_1_g_LRIS_131228_coadd.fits',
-    #              'KECK/tyc4419_1_R_LRIS_131228_coadd.fits',
-    #              '20140226/tyc4419_tyc4519_20140226_coadd.fits',
-    #              '20140531/tyc4419_tyc4519_20140531_coadd.fits',
-    #              '20140621/tyc4419_tyc4519_20140621_coadd.fits',
-    #              '20140827/tyc4419_tyc4519_20140827_coadd.fits',
-    #              '20140923/tyc4419_tyc4519_20140923_coadd.fits']
-    filenames=['20130826/tyc4419_tyc4519_20130826_coadd.fits',
-                'KECK/tyc4419_1_DEIMOS_5_6_coadd.fits',
-                '20131202/tyc4419_tyc4519_20131202_coadd.fits',
-                # 'KECK/tyc4419_1_g_LRIS_131228_coadd.fits',
-                'KECK/tyc4419_1_R_LRIS_131228_coadd.fits',
-                '20140226/tyc4419_tyc4519_20140226_coadd.fits',
-                '20140531/tyc4419_tyc4519_20140531_coadd.fits',
-                '20140621/tyc4419_tyc4519_20140621_coadd.fits',
-                '20140827/tyc4419_tyc4519_20140827_coadd.fits',
-                '20140923/tyc4419_tyc4519_20140923_coadd.fits']
-
+    
     files = []
     for file in filenames:
         files.append(os.path.join(root, file[:-5]))
@@ -124,7 +104,7 @@ for i in np.arange(len(DIFF_df_BU)): DIFF_df_BU.iloc[i,10]=LEtb.pix2ang(DIFF_df_
 ### MANUAL PSF
 # DIFF_df_BU.iloc[:,8] = pd.Series(data=np.array([7.5,3.7,8.3,5.4]))#([8.4]*15))#
 # for i in np.arange(len(DIFF_df_BU)): DIFF_df_BU.iloc[i,10]=LEtb.pix2ang(DIFF_df_BU.iloc[i]['WCS_w'],DIFF_df_BU.iloc[i,8])
-# %%
+
 # ========== PLOT FITS IMAGES ==========
 DIFF_df = DIFF_df_BU.copy()
 get_ipython().run_line_magic('matplotlib', 'qt')
@@ -184,13 +164,6 @@ PA = Angle([Angle(172,'deg') for Org in Orgs])
 Ln = Angle([100  for Org in Orgs],u.arcsec)
 Wd = Angle([1  for Org in Orgs],u.arcsec)
 
-####$$$$
-# Orgs=SkyCoord([(12.37026024, 58.74383151)],frame='fk5',unit=(u.deg, u.deg))
-# PA = Angle([Angle(140,'deg') for Org in Orgs])
-# Ln = Angle([32  for Org in Orgs],u.arcsec)
-# Wd = Angle([20  for Org in Orgs],u.arcsec)
-####%%%%
-
 # PA = Angle([150],'deg')
 # Ln = Angle([16],u.arcsec)
 # Wd = Angle([7],u.arcsec)
@@ -198,7 +171,7 @@ Wd = Angle([1  for Org in Orgs],u.arcsec)
 # PA = Angle([172,172,172],'deg')
 # Ln = Angle([18,100,10],u.arcsec)
 # Wd = Angle([7.5,1,10],u.arcsec)
-# %%
+
 clmns = ['Orig', 'PA', 'Length','WIDTH']
 slitFPdf = pd.DataFrame(index=np.arange(len(Orgs)), columns=clmns, data = [(Orgs[i],PA[i],Ln[i],Wd[i]) for i in np.arange(len(Orgs))])
 
@@ -210,13 +183,12 @@ plt.close('all')
 figures=[plt.figure() for i in DIFF_df.index]
 managers=[manager for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 for mng in managers: mng.window.showMaximized()
-# LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#, crest_lines=CLs)#,peaks_locs=b)
-LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#, crest_lines=CLs)
+LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#, crest_lines=CLs,peaks_locs=b)
 # %
 
 w_s = DIFF_df['WCS_w'].to_list()
 LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'],slitFPdf.iloc[0]['Length']*1.4,slitFPdf.iloc[0]['Length']*2.4)
-# LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'].directional_offset_by(slitFPdf.iloc[0]['PA'],Angle(25,u.arcsec)),slitFPdf.iloc[0]['Length']*0.35,slitFPdf.iloc[0]['Length']*0.3)
+# LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'].directional_offset_by(slitFPdf.iloc[0]['PA'],Angle(25,u.arcsec)),slitFPdf.iloc[0]['Length']/2,slitFPdf.iloc[0]['Length']/4)
 
 
 # %%
@@ -236,18 +208,18 @@ def axisEqual3D(ax):
 # ax=fig.add_subplot(projection='3d')
 # fig=plt.figure()
 # ax2=fig.add_subplot()
-inds=[i for i in np.arange(len(DIFF_df))]#[0,1,2,3]#,4,5,6,7]
+inds=[0,1]#,2,3,4,5,6,7]
 slit_inds = [0]
 
-
-# x_cutoff, y_cutoff = coord_corners2xy_lims(coord_list,Orgs[0],PA[0])
-
+# y_cutoff = [[-10,-7],[-10,-6],[-10,-5],    [-7,-3], [-7,-3], [-6,-1], [-1,4], [2,5], [4,7], [5,8]]
+# x_cutoff = [[-16,-4],[-10.5,-1],[-7.3,1],  [-6.5,2],[-6.5,2],[-3.5,5.5], [0,10],  [2,10],  [5,13], [5,14]]
+x_cutoff, y_cutoff = coord_corners2xy_lims(coord_list,Orgs[0],PA[0])
 for slit_ind in slit_inds:
     
     # star_masks = [[[-9.388,-0.419],1.2], [[-5.810,3.568],1.2], [[-2.205,1.803],1.2], [[-3.849,0.971],1.2], [[2.500,-1.966],1.2], [[-5.107,-8.458],1.2], [[-3.637,-8.029],1.2]]
     input_arr_s, z_s = [], []
     for ind in inds:
-        star_masks = coord2ofs_list(coord_list,Orgs[slit_ind],PA[slit_ind],verbose=False)
+        # star_masks = coord2ofs_list(coord_list,Orgs[slit_ind],PA[slit_ind],verbose=False)
         iii=inds.index(ind)
         fig=plt.figure()
         if iii!=0:
@@ -261,10 +233,10 @@ for slit_ind in slit_inds:
         x=FP_df_lst[slit_ind].iloc[ind]['ProjAng'].arcsec
         y=FP_df_lst[slit_ind].iloc[ind]['PerpAng'].arcsec
         z=FP_df_lst[slit_ind].iloc[ind]['FluxProfile_ADU']
-        mjd_curr = DIFF_df.iloc[ind]['Idate']
+        mjd_curr = DIFF_df.iloc[ind]['Idate'    ]
         PSF_curr = DIFF_df.iloc[ind]['FWHM_ang'].arcsec
         
-        x_inds = np.logical_and(x>(x_cutoff[iii][0]), x<(x_cutoff[iii][1]))
+        x_inds = np.logical_and(x>x_cutoff[iii][0], x<x_cutoff[iii][1])
         x = x[x_inds]
         y = y[x_inds]
         z = z[x_inds]
@@ -274,12 +246,12 @@ for slit_ind in slit_inds:
         y = y[y_inds]
         z = z[y_inds]
         
-        for star_mask in star_masks:
-            st_mk_inds = np.hypot((x-star_mask[0][0])*1,y-star_mask[0][1])>(1.5)#PSF_curr)
-            # st_mk_inds = np.hypot(x-star_mask[0][0],y-star_mask[0][1])>(1.2*PSF_curr)
-            x = x[st_mk_inds]
-            y = y[st_mk_inds]
-            z = z[st_mk_inds]
+        # for star_mask in star_masks:
+        #     st_mk_inds = np.hypot((x-star_mask[0][0])*1,y-star_mask[0][1])>(1.5)#PSF_curr)
+        #     # st_mk_inds = np.hypot(x-star_mask[0][0],y-star_mask[0][1])>(1.2*PSF_curr)
+        #     x = x[st_mk_inds]
+        #     y = y[st_mk_inds]
+        #     z = z[st_mk_inds]
         
         shape = (len(x),1)
         input_arr_s.append(np.concatenate((x.reshape(shape),y.reshape(shape),mjd_curr*np.ones(shape),PSF_curr*np.ones(shape)),axis=1))
@@ -303,11 +275,11 @@ for slit_ind in slit_inds:
 #         [200.0,    1e3,             35,    50.0*np.pi/180,   -1e0, 5e1])
 # bnd = ([1e-3,     1e1,            -15,   -10.0*np.pi/180,  -4e1, -500 ],
 #         [200.0,    1e3,             15,    10.0*np.pi/180,   -1e0, 2e3])
-bnd = ([1e-3,     1e1,            -16,     -20, -500 ],
+bnd = ([1.0,     1e1,            -16,     -1e2, -500 ],
         [200.0,    1e3,             16,      -1e0, 2e3])
 bnds=[bnd]*10
 
-
+from copy import deepcopy
 F_SCALE=100
 # plt.figure()
 # ax2 = plt.subplot() 
@@ -322,18 +294,23 @@ for i in np.arange(len(input_arr_s)):
     inp_arr = input_arr_s[i]
     x_bnd = (inp_arr[:,0].min(),inp_arr[:,0].max())
     mjd = inp_arr[:,2][0]
-    bnd_tmp = bnds[i]
+    bnd_tmp = deepcopy(bnds[i])
     bnd_tmp[0][2] = x_bnd[0]
     bnd_tmp[1][2] = x_bnd[1]
-    popt = deepcopy(popt_lst_BU[i])
-    # popt, pcov = curve_fit(ConvLC_2Dpolyphase,inp_arr,z,bounds=bnd_tmp,absolute_sigma=True)#,sigma=np.ones(inp_arr[:,0].shape)*20)
+    ######### 2 PEAKS MODEL!!!! ####
+    bnd_tmp[0].append(x_bnd[0])#0.5)
+    bnd_tmp[1].append(29)#(x_bnd[1]-x_bnd[0])/2)
+    bnd_tmp[0].append(bnd_tmp[0][1])
+    bnd_tmp[1].append(bnd_tmp[1][1])
+    # popt = deepcopy(popt_lst_BU[i])
+    popt, pcov = curve_fit(SUM2_ConvLC_2Dpolyphase,inp_arr,z,bounds=bnd_tmp,absolute_sigma=True)#,sigma=np.ones(inp_arr[:,0].shape)*20)
     errs = np.sqrt(np.diag(pcov))
     popt_lst.append(popt.copy())
     errs_lst.append(errs.copy())
     # popt = [20.0,     10e1,            -0.0,   -34.0*np.pi/180,   -14 ]
     # popt = [  3.09876149, 116.87448495,   8.91707928 +(mjd-56654.2),  -0.47029305,  -5.38910457, -14.00613042]
     print('dust_width, PeakFlux, arcs_shift, phs_grad, add_const = '+str(popt))
-    p01,p02,p04,p05,p06, add_const = popt[0], popt[1], popt[2], 0, popt[3], popt[4]
+    p01,p02,p04,p05,p06, add_const, p04_2,p02_2 = popt[0], popt[1], popt[2], 0, popt[3], popt[4], popt[5], popt[6]
     phs_grads.append(p06.copy())
     # p01,p02,p04,p05,p06, add_const = popt[0], popt[1], popt[2], popt[3], popt[4], popt[5]
     PSF = inp_arr[:,3][0] # arcsec
@@ -364,8 +341,9 @@ for i in np.arange(len(input_arr_s)):
     # ax.scatter(x,y,xy_phases,c='b',s=1)
     bbox=np.array([[x.min(),x.max()],[y.min(),y.max()]])
     plot_proj_phaseplane(ax,p04,p05,grad,bbox)
-    ax.scatter(x,ConvLC_2Dpolyphase(inp_arr,*popt),cmap='jet',vmax=F_SCALE,vmin=-F_SCALE,c='r',s=1,label='fit')
-    ax.scatter(x,ConvLC_2Dpolyphase(inp_arr,0,p02,p04,p06, add_const),c='k',s=0.5,label='before convolution')
+    ax.scatter(x,SUM2_ConvLC_2Dpolyphase(inp_arr,*popt),cmap='jet',vmax=F_SCALE,vmin=-F_SCALE,c='r',s=1,label='fit')
+    ax.plot(x,ConvLC_2Dpolyphase(inp_arr,p01,p02,p04,p06, add_const),c='b',linewidth=0.5,label='Sheet no. 1')
+    ax.plot(x,ConvLC_2Dpolyphase(inp_arr,p01,p02_2,p04_2,p06, add_const),c='g',linewidth=0.5,label='Sheet no. 2')
     ax.scatter(x,z,cmap='jet',vmax=F_SCALE,vmin=-F_SCALE,s=1)
     
     # im=ax.scatter(x,y,cmap='jet',c=z-ConvLC_2Dpolyphase(inp_arr,*popt),s=1)
@@ -379,15 +357,15 @@ for i in np.arange(len(input_arr_s)):
     
     # ax2.scatter(p04/p06,mjd)
     # zero intersect: cos(p05)*p06*X + sin(p05)*p06*Y + p04 +mjd = 0 --> X = -(sin(p05)*p06*Y + p04 +mjd)/cos(p05)*p06
-    zero_y = np.array([-0.5,0.5,0])*Wd[0].arcsec*1.2
+    zero_y = np.array([-0.5,0.5,0])*8
     zero_x = p04 -(np.sin(p05)*p06*zero_y + 0*mjd)/(np.cos(p05)*p06)
     # zero_x = -(np.sin(p05)*p06*zero_y + p04+0*mjd)/(np.cos(p05)*p06)
     ax3.plot(zero_x,zero_y,mjd)
     
     plot_local_phase_plane(ax3, p04, p05, p06, [-0.5,0.5], [-10,0,10], mjd)
     
-    CLs[i,0,0], CLs[i,1,0], CLs[i,2,0] = zero_x
-    CLs[i,0,1], CLs[i,1,1], CLs[i,2,1] = zero_y
+    CLs[i,0,0], CLs[i,1,0], CLs[i,2,0] = zero_x*1.0
+    CLs[i,0,1], CLs[i,1,1], CLs[i,2,1] = zero_y*1.0
     CLs[i,0,2], CLs[i,1,2], CLs[i,2,2] = mjd*np.ones(len(zero_y))
     
     ax.legend()
@@ -481,6 +459,34 @@ def ConvLC_2Dpolyphase(input_array, p01,p02,p04,p06,add_const):
     output_array = ConvLC(xy_phases, *ConvLC_params)
     
     return output_array
+
+def SUM2_ConvLC_2Dpolyphase(input_array, p01,p02,p04,p06,add_const,p04_2,p02_2):
+    p05=0*np.pi/180 # [rad]
+    x, y, mjd, PSFs = input_array[:,0], input_array[:,1], input_array[:,2], input_array[:,3]
+    
+    phs_edges = SN_f(0,edge_query=True)
+    
+    # xy_phases = p04 +np.cos(p05)*p06*x +np.sin(p05)*p06*y# +mjd
+    xy_phases1 = np.cos(p05)*p06*(x-p04) +np.sin(p05)*p06*y
+    input_model_valid_ind = np.logical_and(xy_phases1>phs_edges[0],xy_phases1<phs_edges[1])
+    
+    
+    xy_phases2 = np.cos(p05)*p06*(x-((p04_2))) +np.sin(p05)*p06*y
+    input_model_valid_ind = np.logical_and(input_model_valid_ind,np.logical_and(xy_phases2>phs_edges[0],xy_phases2<phs_edges[1]))
+    
+    # xy_phases1[np.logical_not(input_model_valid_ind)] = 1000
+    # xy_phases2[np.logical_not(input_model_valid_ind)] = 1000
+    
+    phase_grad = p06#np.hypot(polyphase_params[0,1],polyphase_params[1,0])
+    
+    eff_phs_wid = np.hypot(p01,phase_grad*PSFs[0])
+    ConvLC_params = [eff_phs_wid,p02,add_const]
+    output_array1 = ConvLC(xy_phases1, *ConvLC_params)
+    
+    ConvLC_params = [eff_phs_wid,p02_2,0]
+    output_array2 = ConvLC(xy_phases2, *ConvLC_params)
+    
+    return output_array1 + output_array2
 
 ## == TRASH ==
 # polyphase_params = np.array([[p04,              np.sin(p05)*p06,    0,  0],

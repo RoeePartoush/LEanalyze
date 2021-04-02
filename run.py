@@ -558,9 +558,20 @@ b=np.array(#[56453.45805556, 14.9702, 0.5],
             # [56654.240457	,29.316,  0.5],
             [56715.12659722,    30.75, 1]]) #30.9705, 0.5]])
 # %%
-x = b[0:3,0]*1.0
-y = b[0:3,1]*1.0
-yerr = b[0:3,2]*1.0
+b=np.array(#[56453.45805556, 14.9702, 0.5],
+            # [56531.46836806, 18.0493, 0.5],
+            [[56571.35748700,    22.5,   1],
+            [56629.26443287,    27.22,   1],
+            # [56629.26679398, 26.4269, 0.5],
+            # [56654.238444,      29.2,   0.5],
+            [56654.238593,      28.82,     0.5],
+            # [56654.240457	,29.316,  0.5],
+            [56715.12659722,    31.41, 1]]) #30.9705, 0.5]])
+
+# %%
+x =     b[0:4,0]*1.0
+y =     b[0:4,1]*1.0
+yerr =  b[0:4,2]*1.0
 
 plt.figure()
 plt.errorbar(x,y,yerr=yerr,label='data',fmt='none',capsize=5)
@@ -579,7 +590,7 @@ plt.plot(x,line_model(x,*popt),label='curve fit', linewidth=2,c='b')
 for i in [0,1]:
     par_err = popt.copy()
     par_err += np.array([pcov[0,i], pcov[1,i]])/perr[i]
-    plt.plot(b[:,0],line_model(b[:,0],*par_err),label='slope: '+'%.3f'%(par_err[0])+', intercept: '+'%.0f'%(par_err[1]), linewidth=1)
+    plt.plot(x,line_model(x,*par_err),label='slope: '+'%.3f'%(par_err[0])+', intercept: '+'%.0f'%(par_err[1]), linewidth=1)
 
 plt.legend()
 plt.ylabel('Peak flux location [arcsec]')

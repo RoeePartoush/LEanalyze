@@ -66,6 +66,7 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
         FPcntr_world = scalarize(slitFPdf.iloc[indS]['Orig'])
         FP_pa_world  = scalarize(slitFPdf.iloc[indS]['PA']       )
         FPlen_world  = scalarize(slitFPdf.iloc[indS]['Length']   )
+        width =        scalarize(slitFPdf.iloc[indS]['WIDTH']       )
         
 #        if indS>0:
 #            del FP_df
@@ -104,12 +105,12 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             
             if indS==0:
                 image = DIFF_df.iloc[indD]['Diff_HDU'].data*1.0
-                Zx = ndimage.sobel(image,axis=1)/8
-                Zy = ndimage.sobel(image,axis=0)/8
-                grad = np.sqrt(Zx**2+Zy**2)
-                grad_thres=np.percentile(grad,99.5)
-                boolinds_mat = (ndimage.median_filter((grad>grad_thres)*1.0,size=3)==1)
-                image[boolinds_mat] = np.nan
+                # Zx = ndimage.sobel(image,axis=1)/8
+                # Zy = ndimage.sobel(image,axis=0)/8
+                # grad = np.sqrt(Zx**2+Zy**2)
+                # grad_thres=np.percentile(grad,99.5)
+                # boolinds_mat = (ndimage.median_filter((grad>grad_thres)*1.0,size=3)==1)
+                # image[boolinds_mat] = np.nan
                 images.append(image.copy())
                 
 #                inds_mask = np.ravel_multi_index(np.where(mask2bool(mask)),mask.shape)
@@ -138,7 +139,8 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             else:
                 width_pix = ang2pix(w, width)
                 FP_df.iloc[indD]['WrldWidth'] = width
-            flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
+            flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=int(FPlen_world.arcsec))
+            # flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
 #            if indD==0:
 #                flux, err, pixVec, pixProj, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
 #                inds_wcs = np.ravel_multi_index(np.where(boolind_mat_wcs),boolind_mat_wcs.shape)
@@ -177,8 +179,11 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
                     flux_cal = flux/LEplots.im_norm_factor(HDU)#*np.power(10,-zptmag/2.5)
                 err_cal = err/LEplots.im_norm_factor(HDU)
                 flux_mag = -2.5*np.log10(flux) + FP_df.iloc[indD]['ZPTMAG']
-                xx, yy, yyerr, yBref, stdBref, binCnt = prof_bins(wrldProj.arcsec,flux_cal,FPlen_world.arcsec,N=N_bins,OL=bin_OL)
-                err_xx, err_yy, err_yyerr, err_yBref, err_stdBref, err_binCnt = prof_bins(wrldProj.arcsec,err_cal,FPlen_world.arcsec,N=N_bins,OL=bin_OL)
+                xx, yy, yyerr, yBref, stdBref, binCnt = prof_bins(wrldProj.arcsec,flux_cal,FPlen_world.arcsec,N=int(FPlen_world.arcsec),OL=bin_OL)
+                err_xx, err_yy, err_yyerr, err_yBref, err_stdBref, err_binCnt = prof_bins(wrldProj.arcsec,err_cal,FPlen_world.arcsec,N=int(FPlen_world.arcsec),OL=bin_OL)
+                # xx, yy, yyerr, yBref, stdBref, binCnt = prof_bins(wrldProj.arcsec,flux_cal,FPlen_world.arcsec,N=N_bins,OL=bin_OL)
+                # err_xx, err_yy, err_yyerr, err_yBref, err_stdBref, err_binCnt = prof_bins(wrldProj.arcsec,err_cal,FPlen_world.arcsec,N=N_bins,OL=bin_OL)
+                
                 
 #                abnormal_inds = yyerr>(3*err_yy/np.sqrt(binCnt))
 #                abnormal_inds = np.logical_or(abnormal_inds,binCnt<0.5*np.nanmax(binCnt))
@@ -268,7 +273,7 @@ def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pi
 
 def FPparams_world2pix(w, FPcntr_world, FP_pa_world, FPlen_world):
     
-    FPcntr_pix = w.wcs_world2pix(np.array([[FPcntr_world.ra.deg, FPcntr_world.dec.deg]]), 0)
+    FPcntr_pix = w.wcs_world2pix(np.array([[FPcntr_world.ra.deg, FPcntr_world.dec.deg]]), 1)
     
     FPlen_pix = ang2pix(w, FPlen_world)
     
@@ -277,7 +282,7 @@ def FPparams_world2pix(w, FPcntr_world, FP_pa_world, FPlen_world):
     
     FPcntr_world_car = FPcntr_world.represent_as(CartesianRepresentation)
     FPcntr_pa_US = (FPcntr_world_car + pix2ang(w,1).rad*(np.sin(FP_pa_world.rad)*RA_uv + np.cos(FP_pa_world.rad)*DEC_uv)).represent_as(UnitSphericalRepresentation)
-    FP_pa_pix_uv = normalize(w.wcs_world2pix(np.array([[FPcntr_pa_US.lon.deg,FPcntr_pa_US.lat.deg]]),0) - FPcntr_pix)
+    FP_pa_pix_uv = normalize(w.wcs_world2pix(np.array([[FPcntr_pa_US.lon.deg,FPcntr_pa_US.lat.deg]]),1) - FPcntr_pix)
     
     return FPcntr_pix, FP_pa_pix_uv, FPlen_pix
 

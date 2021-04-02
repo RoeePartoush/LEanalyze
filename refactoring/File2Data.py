@@ -21,18 +21,18 @@ from scipy import stats
 from astropy import wcs
 SQ = np.squeeze
 
-def FitsDiff(diff_flnm):
+def IM_df_init(diff_flnm):
     # diff_flnm = list of strings containing full absolute path EXCEPT extension (without the '.fits')
     
-    DFclmn = ['filename','Idate','Tdate','Diff_HDU','Mask_HDU','Mask_mat','Noise_HDU','Noise_mat','FWHM','ZPTMAG','FWHM_ang','M5SIGMA','WCS_w']
+    DFclmn = ['filename','Idate','Tdate','Image_HDU','Mask_HDU','Mask_mat','Noise_HDU','Noise_mat','FWHM','ZPTMAG','FWHM_ang','M5SIGMA','WCS_w']
     difDF = pd.DataFrame(index=np.arange(len(diff_flnm)),columns=DFclmn)
     
     for ind in np.arange(len(diff_flnm)):
-        print('\n***FitsDiff*** iter. no '+str(ind))
+        print('\n***LoadImages*** iter. no '+str(ind))
         difDF.at[ind,'filename'] = os.path.basename(diff_flnm[ind])
         print(diff_flnm[ind] + '.fits')
         Diff_hdu = fits.open(diff_flnm[ind] + '.fits')[0]
-        difDF.loc[ind]['Diff_HDU'] = Diff_hdu
+        difDF.loc[ind]['Image_HDU'] = Diff_hdu
         difDF.loc[ind]['WCS_w'] = wcs.WCS(Diff_hdu.header)
         try:
             difDF.loc[ind]['Mask_HDU'] = fits.open(diff_flnm[ind] + '.mask.fits')[0]
@@ -51,22 +51,23 @@ def FitsDiff(diff_flnm):
     difDF.insert(difDF.shape[1],'coords_list',[ [] for i in range(len(difDF)) ])
     difDF.sort_values('Idate',inplace=True)
     difDF.reset_index(drop=True,inplace=True)
-    print('\n====DONE.====')
+    print('\n====HALAS.====')
     return difDF
 
 def FitsParams(diff_flnm, difDF):
     for ind in np.arange(len(diff_flnm)):
         print('\n***FitsParams*** iter. no '+str(ind))
+        HDU = difDF.iloc[ind]['Diff_HDU']
         try:
             try:
-                Iflnm = os.path.dirname(diff_flnm[ind]) + '/' + difDF.iloc[ind]['Diff_HDU'].header['IMNAME']
-                Tflnm = os.path.dirname(diff_flnm[ind]) + '/' + difDF.iloc[ind]['Diff_HDU'].header['TMPLNAME']
+                Iflnm = os.path.dirname(diff_flnm[ind]) + '/' + HDU.header['IMNAME']
+                Tflnm = os.path.dirname(diff_flnm[ind]) + '/' + HDU.header['TMPLNAME']
                 print('Found Image & Template .dcmp!\n')
             except Exception as e:
                 print('\n***ERROR:*** '+str(e))
                 try:
-                    Iflnm = os.path.dirname(diff_flnm[ind]) + '/' + os.path.basename(difDF.iloc[ind]['Diff_HDU'].header['TARGET'])
-                    Tflnm = os.path.dirname(diff_flnm[ind]) + '/' + os.path.basename(difDF.iloc[ind]['Diff_HDU'].header['TEMPLATE'])
+                    Iflnm = os.path.dirname(diff_flnm[ind]) + '/' + os.path.basename(HDU.header['TARGET'])
+                    Tflnm = os.path.dirname(diff_flnm[ind]) + '/' + os.path.basename(HDU.header['TEMPLATE'])
                     print('Found Image & Template .dcmp!\n')
                 except Exception as e:
                     print('\n***ERROR:*** '+str(e))
@@ -103,10 +104,10 @@ def FitsParams(diff_flnm, difDF):
         if difDF.iloc[ind]['ZPTMAG'] is np.nan:
             print('KLKMLKML')
             try:
-                difDF.iloc[ind]['ZPTMAG'] = fishKW(difDF.iloc[ind]['Diff_HDU'].header,['ZPTMAG00','ZPTMAG','MAGZERO'])
+                difDF.iloc[ind]['ZPTMAG'] = fishKW(HDU.header,['ZPTMAG00','ZPTMAG','MAGZERO'])
             except Exception as e:
                 pass
-        w = wcs.WCS(difDF.iloc[ind]['Diff_HDU'].header)
+        w = wcs.WCS(HDU.header)
         difDF.iloc[ind]['FWHM_ang'] = LEtb.pix2ang(w,difDF.iloc[ind]['FWHM'])
     return difDF
 
@@ -186,12 +187,9 @@ def LCdata2func(phases,mags_p,smooth_lin=False):
             return LinFlux
     
     else:
-        def func_LinFlux(phase,edge_query=None):
-            if edge_query:
-                return [phases_shft.min(), phases_shft.max()]
-            else:
-                LinFlux = np.interp(phase, phases_shft, LinFlux_p, left=back_LinFlux, right=back_LinFlux)
-                return LinFlux
+        def func_LinFlux(phase):
+            LinFlux = np.interp(phase, phases_shft, LinFlux_p, left=back_LinFlux, right=back_LinFlux)
+            return LinFlux
     
     return func_mag, func_LinFlux
 
