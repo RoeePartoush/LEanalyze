@@ -75,7 +75,8 @@ def press(event):
     
     fig_inds = []
     for fig in figures:
-        fig_inds.append(fig.number)
+        if fig.get_axes()[0].title.get_text().endswith('fits'):
+            fig_inds.append(fig.number)
     pchr = event.key
     if ((pchr=='z') | (pchr=='x')):
 #        f_ind = int(pchr)-1
@@ -83,11 +84,15 @@ def press(event):
             inc = -1
         elif pchr=='x':
             inc = 1
-        f_ind = np.mod(fig_inds.index(event.canvas.figure.number) +inc,len(figures))
-        figures[f_ind].canvas.manager.window.activateWindow()
-        figures[f_ind].canvas.manager.window.raise_()
-#        figures[f_ind].canvas.draw()
-        plt.figure(figures[f_ind].number)
+        f_ind = np.mod(event.canvas.figure.number-1 +inc,len(fig_inds))+1
+        plt.figure(f_ind).canvas.manager.window.activateWindow()
+        plt.figure(f_ind).canvas.manager.window.raise_()
+        plt.figure(f_ind)
+        # f_ind = np.mod(fig_inds.index(event.canvas.figure.number) +inc,len(figures))
+        # figures[f_ind].canvas.manager.window.activateWindow()
+        # figures[f_ind].canvas.manager.window.raise_()
+        # # figures[f_ind].canvas.draw()
+        # plt.figure(figures[f_ind].number)
     elif ((pchr=='a') | (pchr=='d')):
         for fig in figures:
             for ax in fig.get_axes():
@@ -112,7 +117,7 @@ def onclick(event):
         return
     # w_ind = 0#event.inaxes.figure.number -1#plt.gcf().number -1
     # w=wcs_list[w_ind]
-    indDF=np.argwhere((g_DIFF_df['filename']==event.inaxes.title.get_text()).to_numpy())[0,0]
+    indDF=np.argwhere((g_DIFF_df['filename']==event.inaxes.title.get_text()[:-5]).to_numpy())[0,0]
     w = g_DIFF_df.iloc[indDF]['WCS_w']
     coord_tmp = Angle(w.wcs_pix2world(np.array([ix,iy],ndmin=2),0),u.deg)[0]
     #    print('FC: '+str(first_click))
@@ -130,8 +135,8 @@ def onclick(event):
         g_cl.append(np.array([coord_tmp[0].deg,coord_tmp[1].deg],ndmin=2))
         first_click = False
     else:#if event.inaxes==first_ax:
-        indDF1=np.argwhere((g_DIFF_df['filename']==first_ax.title.get_text()).to_numpy())[0,0]
-        indDF2=np.argwhere((g_DIFF_df['filename']==event.inaxes.title.get_text()).to_numpy())[0,0]
+        indDF1=np.argwhere((g_DIFF_df['filename']==first_ax.title.get_text()[:-5]).to_numpy())[0,0]
+        indDF2=np.argwhere((g_DIFF_df['filename']==event.inaxes.title.get_text()[:-5]).to_numpy())[0,0]
         diff_mjd = g_DIFF_df.iloc[indDF2]['Idate'] - g_DIFF_df.iloc[indDF1]['Idate']
         print('Pixel_2: x = %d, y = %d'%(ix, iy))
         print('World_2: RA = %.8f [deg], DEC = %.8f [deg]'%(coord_tmp[0].deg,coord_tmp[1].deg))
@@ -194,7 +199,7 @@ def remove_most_frequent(mat):
     mat[mat==value] = np.nan
     return mat
 
-def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None, peaks_locs=None, crest_lines=None):
+def imshows(fitsDF, prof_sampDF_lst=None, plot_Fprofile=False, profDF=None, prof_crop = None, popts=None, FullScreen=False, fluxSpace='LIN',g_cl_arg=None, REF_image=None, med_filt_size=None, figs=None, img_axs=None, peaks_locs=None, crest_lines=None):
     global press_bool, move, first_click
     press_bool, move, first_click = False, False, True
     global g_cl
@@ -254,28 +259,30 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
             mng = plt.get_current_fig_manager()
             mng.window.showMaximized()
         
-        if prof_sampDF_lst is None:
-            if ind==0:
-                ax_img.append(fig.add_subplot(111,projection=w))
-#                ax_img.append(fig.add_subplot(211,projection=w))
-#                ax3_img.append(fig.add_subplot(212))
+        if img_axs is None:
+            if prof_sampDF_lst is None:
+                if ind==0:
+                    ax_img.append(fig.add_subplot(111,projection=w))
+    #                ax_img.append(fig.add_subplot(211,projection=w))
+    #                ax3_img.append(fig.add_subplot(212))
+                else:
+                    # ax_img.append(fig.add_subplot(111,projection=w))
+                    ax_img.append(fig.add_subplot(111,projection=w))#,sharex=ax_img[0],sharey=ax_img[0]))
+    #                ax_img.append(fig.add_subplot(211,sharex=ax_img[0],sharey=ax_img[0],projection=w))
+    #                ax3_img.append(fig.add_subplot(212,sharex=ax3_img[0],sharey=ax3_img[0]))
             else:
-                # ax_img.append(fig.add_subplot(111,projection=w))
-                ax_img.append(fig.add_subplot(111,projection=w))#,sharex=ax_img[0],sharey=ax_img[0]))
-#                ax_img.append(fig.add_subplot(211,sharex=ax_img[0],sharey=ax_img[0],projection=w))
-#                ax3_img.append(fig.add_subplot(212,sharex=ax3_img[0],sharey=ax3_img[0]))
+                if ind==0:
+                    ax_img.append(plt.subplot2grid((1,3),(0,0),rowspan=1,projection=w,fig=fig))
+    #                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',fig=fig))#,facecolor='black'))
+                    # ax2_img.append(plt.subplot2grid((2,2),(0,1),rowspan=1,fig=fig))
+                    if fluxSpace=='MAG': 
+                        ax2_img[ind].invert_yaxis()
+                else:
+                    ax_img.append(plt.subplot2grid((1,3),(0,0),rowspan=1,projection=w,fig=fig))#,sharex=ax_img[0],sharey=ax_img[0]))
+    #                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',sharex=ax2_img[0],sharey=ax2_img[0],sharez=ax2_img[0]))#,facecolor='black',fig=fig))
+                    # ax2_img.append(plt.subplot2grid((2,2),(0,1),rowspan=1,sharex=ax2_img[0],fig=fig))
         else:
-            if ind==0:
-                ax_img.append(plt.subplot2grid((2,2),(0,0),rowspan=2,projection=w,fig=fig))
-#                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',fig=fig))#,facecolor='black'))
-                ax2_img.append(plt.subplot2grid((2,2),(0,1),rowspan=1,fig=fig))
-                if fluxSpace=='MAG': 
-                    ax2_img[ind].invert_yaxis()
-            else:
-                ax_img.append(plt.subplot2grid((2,2),(0,0),rowspan=2,projection=w,fig=fig))#,sharex=ax_img[0],sharey=ax_img[0]))
-#                ax2_img.append(plt.subplot2grid((3,1),(1,0),rowspan=2,projection='3d',sharex=ax2_img[0],sharey=ax2_img[0],sharez=ax2_img[0]))#,facecolor='black',fig=fig))
-                ax2_img.append(plt.subplot2grid((2,2),(0,1),rowspan=1,sharex=ax2_img[0],fig=fig))
-        
+            ax_img.append(img_axs[ind])
         # zptmag = 1#fitsDF.iloc[ind]['ZPTMAG']
         # zpt_lin = np.power(10,-zptmag/2.5)
         # sig_adu_cal = HDU.header['SKYSIG']*zpt_lin
@@ -337,7 +344,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
         ax_img[ind].set_facecolor((0.5*135/255,0.5*206/255,0.5*235/255))
 #        ax_img[ind].title.set_text(fitsDF.iloc[ind]['filename'])#+' / pipe_ver: '+str(fitsDF.iloc[ind]['pipe_ver']))
         # plt.gca().set_facecolor((0.5*135/255,0.5*206/255,0.5*235/255))
-        plt.gca().title.set_text(fitsDF.iloc[ind]['filename'])#+' / pi
+        plt.gca().title.set_text(fitsDF.iloc[ind]['filename']+'.fits')#+' / pi
         if last_mat is not None:
             print('HEYYYY!')
             print(ind)
@@ -381,21 +388,23 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
 #                ref_FP[np.isnan(ref_FP)]=0
                 plt.sca(ax_img[ind])
                 xy=prof_sampDF_lst[i].iloc[ind]['WrldCorners']
-                plt.plot(xy[:,0], xy[:,1], transform = ax_img[ind].get_transform('world'), linewidth=1)
+                if plot_Fprofile:
+                    plt.plot(xy[:,0], xy[:,1], transform = ax_img[ind].get_transform('world'), linewidth=1)
                 
                 prof_orig = profDF['Orig'][0]
                 prof_PA_x = profDF['PA'][0]
                 prof_PA_y = profDF['PA'][0] + Angle(90,u.deg)
                 
-                x_lims = Angle(prof_crop[0][ind],u.arcsec)
-                y_lims = Angle(prof_crop[1][ind],u.arcsec)
-                corner1 = prof_orig.directional_offset_by(prof_PA_x,x_lims[0]).directional_offset_by(prof_PA_y,y_lims[0])
-                corner2 = prof_orig.directional_offset_by(prof_PA_x,x_lims[1]).directional_offset_by(prof_PA_y,y_lims[0])
-                corner3 = prof_orig.directional_offset_by(prof_PA_x,x_lims[1]).directional_offset_by(prof_PA_y,y_lims[1])
-                corner4 = prof_orig.directional_offset_by(prof_PA_x,x_lims[0]).directional_offset_by(prof_PA_y,y_lims[1])
-                xy = np.array([[corner1.ra.degree, corner1.dec.degree], [corner2.ra.degree, corner2.dec.degree], 
-                               [corner3.ra.degree, corner3.dec.degree], [corner4.ra.degree, corner4.dec.degree], [corner1.ra.degree, corner1.dec.degree]])
-                plt.plot(xy[:,0], xy[:,1], transform = ax_img[ind].get_transform('world'), linewidth=1, color='r')
+                if prof_crop:
+                    x_lims = Angle(prof_crop[0][ind],u.arcsec)
+                    y_lims = Angle(prof_crop[1][ind],u.arcsec)
+                    corner1 = prof_orig.directional_offset_by(prof_PA_x,x_lims[0]).directional_offset_by(prof_PA_y,y_lims[0])
+                    corner2 = prof_orig.directional_offset_by(prof_PA_x,x_lims[1]).directional_offset_by(prof_PA_y,y_lims[0])
+                    corner3 = prof_orig.directional_offset_by(prof_PA_x,x_lims[1]).directional_offset_by(prof_PA_y,y_lims[1])
+                    corner4 = prof_orig.directional_offset_by(prof_PA_x,x_lims[0]).directional_offset_by(prof_PA_y,y_lims[1])
+                    xy = np.array([[corner1.ra.degree, corner1.dec.degree], [corner2.ra.degree, corner2.dec.degree], 
+                                   [corner3.ra.degree, corner3.dec.degree], [corner4.ra.degree, corner4.dec.degree], [corner1.ra.degree, corner1.dec.degree]])
+                    plt.plot(xy[:,0], xy[:,1], transform = ax_img[ind].get_transform('world'), linewidth=1, color='b')
                 
                 if popts:
                     prof_width = profDF['WIDTH'][0]
@@ -409,7 +418,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
                 
 #                if REF_prof_sampDF_lst is not None
                 xx,yy,yyerr, yBref, stdBref, binCnt = prof_sampDF_lst[i].iloc[ind][['FP_Ac_bin_x','FP_Ac_bin_y','FP_Ac_bin_yerr','FP_Ac_bin_yBref','FP_Ac_bin_ystdBref','FP_Ac_bin_Cnt']].to_list()
-                
+                yy=None
                 if yy is not None:
 #                    xy=prof_sampDF_lst[i].iloc[ind]['WrldVec']
 #                    plt.sca(ax_img[ind])
@@ -431,7 +440,8 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
 #                    plt.scatter(prof_sampDF_lst[i].iloc[ind]['Peak_ProjAng_arcsec'],i*2,s=2,c='m',cmap='jet')
                     # ylim_tmp = [min(ylim_tmp[0],np.nanmin(yy)-3*meansig), max(ylim_tmp[1],np.nanmax(yy)+3*meansig)]
                     # ylim_tmp = [np.nanpercentile(yy, 0)-3*meansig, np.nanpercentile(yy, 90)+3*meansig]
-                    plt.scatter(x.arcsec,y,s=1,vmax=2,vmin=0, cmap='jet', label='flux samples')#,c=np.abs((y-yBref)/stdBref))
+                    # plt.plot(x.arcsec[x.arcsec.argsort()],y[x.arcsec.argsort()],linewidth=0.2,label='flux samples')
+                    plt.scatter(x.arcsec,y,s=0.5, cmap='jet', label='flux samples')#,c=np.abs((y-yBref)/stdBref))
 #                    yyerr_skysig = np.zeros(yyerr.shape)
 #                    yyerr_skysig = np.divide(sig_adu_cal,np.sqrt(binCnt))
 #                    plt.plot(xx,np.divide(yyerr,yyerr_skysig))
@@ -457,10 +467,23 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
 #                tmp_sct[i].set_facecolor((0,0,0))
         if profDF is not None: 
             plt.sca(ax_img[ind])
-            for s_coord in profDF['Orig']:
-                plt.scatter(s_coord.ra.degree, s_coord.dec.degree, s=20,color='b', transform = ax_img[ind].get_transform('world'))
-                slit_PA = profDF.iloc[0]['PA']
-                slit_PA_perp = Angle(profDF.iloc[0]['PA'] + Angle(90,u.deg)).wrap_at('360d')
+            for O_i,s_coord in enumerate(profDF['Orig']):
+                # plt.scatter(s_coord.ra.degree, s_coord.dec.degree, s=20,color='b', transform = ax_img[ind].get_transform('world'))
+                slit_PA = profDF.iloc[O_i]['PA']
+                slit_Ln = profDF.iloc[O_i]['Length']
+                slit_Wd = profDF.iloc[O_i]['WIDTH']
+                slit_PA_perp = Angle(slit_PA + Angle(90,u.deg)).wrap_at('360d')
+                tip1 = s_coord.directional_offset_by(slit_PA,slit_Ln/2)
+                tip2 = s_coord.directional_offset_by(slit_PA,-slit_Ln/2)
+                # PLOT PROFILE X AXIS:
+                # plt.plot([tip1.ra.degree,tip2.ra.degree],[tip1.dec.degree,tip2.dec.degree],transform = ax_img[ind].get_transform('world'))
+                
+                # PLOT PROFILE ENCLOSING BOX:
+                tips = [s_coord.directional_offset_by(slit_PA,c_i[0]*slit_Ln/2).directional_offset_by(slit_PA_perp,c_i[1]*slit_Wd/2) for c_i in zip([-1,-1,1,1,-1],[-1,1,1,-1,-1])]
+                tips_ra = [tip.ra.degree for tip in tips]
+                tips_dec = [tip.dec.degree for tip in tips]
+                # ax_img[ind].plot(tips_ra,tips_dec,transform = ax_img[ind].get_transform('world'),c='r',linewidth=2)
+    
                 if s_coord is profDF.iloc[0]['Orig']:
                     if peaks_locs is not None:
                         peak_offset = peaks_locs[ind,1]
@@ -475,11 +498,11 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
                         plt.plot(peak_err.ra.degree, peak_err.dec.degree,color='r', transform = ax_img[ind].get_transform('world'))
                     if crest_lines is not None:
                         x1, y1 = crest_lines[ind,0,0:2]
-                        x2, y2 = crest_lines[ind,1,0:2]
+                        x2, y2 = crest_lines[ind,-1,0:2]
                         crest_line1 = s_coord.directional_offset_by(slit_PA,Angle(x1,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y1,u.arcsec))
                         crest_line2 = s_coord.directional_offset_by(slit_PA,Angle(x2,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y2,u.arcsec))
                         crest_line = SkyCoord((crest_line1,crest_line2))
-                        plt.plot(crest_line.ra.degree, crest_line.dec.degree,color='r', transform = ax_img[ind].get_transform('world'))
+                        plt.plot(crest_line.ra.degree, crest_line.dec.degree,color='b', linewidth=1, transform = ax_img[ind].get_transform('world'))
                     
                     # x1, y1 = -9,0
                     # x2, y2 = 9,0
@@ -487,7 +510,7 @@ def imshows(fitsDF, prof_sampDF_lst=None, profDF=None, prof_crop = None, popts=N
                     # crest_line2 = s_coord.directional_offset_by(slit_PA,Angle(x2,u.arcsec)).directional_offset_by(slit_PA_perp,Angle(y2,u.arcsec))
                     # crest_line = SkyCoord((crest_line1,crest_line2))
                     # plt.plot(crest_line.ra.degree, crest_line.dec.degree,color='b', transform = ax_img[ind].get_transform('world'))
-    return
+    return ax_img
 
 def imshow_Xcorr(fitsDF, ind1, ind2):
     Zscale = ZScaleInterval()
@@ -879,16 +902,16 @@ def imshow_copy_figure(source_fig, target_fig, source_im_ind=0, alpha=1, alpha_a
     target_ax.imshow(mat,vmin=clim[0],vmax=clim[1],cmap='gray',extent=extent, alpha=alpha)
     return
 
-def match_zoom_wcs(figs, wcs_list, center_coord, RA_span, DEC_span):
+def match_zoom_wcs(axs, wcs_list, center_coord, RA_span, DEC_span):
     PA = Angle(np.arctan(RA_span.rad/DEC_span.rad),u.rad)
     Diag_span = Angle(np.hypot(RA_span.rad,DEC_span.rad),u.rad)
     corner1_world = center_coord.directional_offset_by(PA,Diag_span/2)
     corner2_world = center_coord.directional_offset_by((PA+Angle(180,u.deg)).wrap_at('360d'),Diag_span/2)
-    for i in np.arange(len(figs)):
-        fig = figs[i]
+    for i in np.arange(len(axs)):
+        # fig = figs[i]
         w = wcs_list[i]
         
-        ax = fig.get_axes()[0]
+        ax = axs[i]#fig.get_axes()[0]
         corner1_pix = corner1_world.to_pixel(w)
         corner2_pix = corner2_world.to_pixel(w)
         

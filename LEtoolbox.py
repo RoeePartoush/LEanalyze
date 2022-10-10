@@ -54,7 +54,7 @@ def matchFWHM(DIFF_df,ind,ref_FWHM):
     image = gaussian_filter(image, sigma=gss_FWHM/(2*np.sqrt(2*np.log(2))))
     return image
 
-def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30, REF_image=None, bin_OL = 0):
+def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30, REF_image=None, bin_OL = 0, uniform_wcs=False):
     FP_df_lst=[]
     maxFWHM = Angle(list(DIFF_df['FWHM_ang'])).max()
     print('maxFWHM='+str(maxFWHM.deg))
@@ -139,7 +139,11 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
             else:
                 width_pix = ang2pix(w, width)
                 FP_df.iloc[indD]['WrldWidth'] = width
-            flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=int(FPlen_world.arcsec))
+            if uniform_wcs and indD!=0:
+                flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs, boolind_mat = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=int(FPlen_world.arcsec), samp_mask_pre_calc = boolind_mat)
+            else:
+                flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs, boolind_mat = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=int(FPlen_world.arcsec))
+            
             # flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
 #            if indD==0:
 #                flux, err, pixVec, pixProj, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat = MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=N_bins)
@@ -224,7 +228,7 @@ def getFluxProfile(DIFF_df, slitFPdf, width=None, PSFeq_overFWHM=None, N_bins=30
 
 
 
-def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=50):
+def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pix, N=50, samp_mask_pre_calc = None):
     
     # for convenience, here we internally reshape FPcntr_pix and FP_pa_pix_uv from (1,2)=[[x,y]] to (2,)=[x,y]
     FPcntr_pix = np.reshape(FPcntr_pix,(2,))
@@ -255,8 +259,12 @@ def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pi
     # distvec_Y = v_Y - dotprod_mat*FP_pa_pix_uv[1]
     # dist_mat = np.sqrt(distvec_X**2 + distvec_Y**2)
     
-    boolind_mat_wcs = np.logical_and(np.abs(dist_mat)<(width_pix/2), np.abs(dotprod_mat)<(FPlen_pix/2))
-    boolind_mat = np.logical_and(mask2bool(mask),boolind_mat_wcs)
+    if samp_mask_pre_calc is not None:
+        boolind_mat = samp_mask_pre_calc
+        boolind_mat_wcs = samp_mask_pre_calc
+    else:
+        boolind_mat_wcs = np.logical_and(np.abs(dist_mat)<(width_pix/2), np.abs(dotprod_mat)<(FPlen_pix/2))
+        boolind_mat = np.logical_and(mask2bool(mask),boolind_mat_wcs)
     
     if np.any(boolind_mat.flatten()):
         flux = image[boolind_mat]
@@ -267,7 +275,7 @@ def MatLinSamp(image, mask, noise, FPcntr_pix, FP_pa_pix_uv, FPlen_pix, width_pi
     else:
         flux, err, pixVec, pixProj = [None, None, None, None]
     
-    return flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs
+    return flux, err, pixVec, pixProj, pixPerp, pixCorners, boolind_mat_wcs, Xmat, Ymat, dotprod_mat, pixCntrs, boolind_mat
 
 
 
@@ -347,7 +355,8 @@ def prof_bins(x,y,FP_len,N=100,OL=0.0):
         inds = np.logical_and(x>=bin_left,x<bin_right)
         vals = y[inds]
         binCnt.append(vals.size)
-        yB.append(np.nanmedian(vals))
+        yB.append(np.nanmean(vals))
+        # yB.append(np.nanmedian(vals))
         stdB.append(np.nanstd(vals)/np.sqrt(vals.size))
         yBref[inds] = yB[i]
         stdBref[inds] = stdB[i]

@@ -80,7 +80,8 @@ def ConvLC(phase, phs_wid, PeakFlux, add_const):
     return flux
 
 
-def LEprof_model(input_array, p01,p02,p04,p06,add_const):
+def LEprof_model( input_array,    p01,        p02, p04,   p06,    add_const):
+    #           (x,y,mjds,PSFs), dust_width, amp, shift, phs_grd, add_const
     p05=0*np.pi/180 # [rad]
     x, y, mjd, PSFs = input_array[:,0], input_array[:,1], input_array[:,2], input_array[:,3]
     
@@ -213,6 +214,14 @@ def coord_corners2xy_lims(corners_unzipped,Org,PA):
         y_lims.append([min(y1,y2), max(y1,y2)])
     return x_lims, y_lims
 
+
+def cov2corr(cov):
+    corr = np.zeros(cov.shape)
+    for i in np.arange(cov.shape[0]):
+        for j in np.arange(cov.shape[1]):
+            corr[i,j] = cov[i,j]/(np.sqrt(cov[i,i])*np.sqrt(cov[j,j]))
+    return corr
+
 # %%
 
 star_list = []
@@ -221,41 +230,36 @@ popt_lst = []
 # ========= USER INPUT =========
 # == COPY AND PASTE OVER HERE ==
 # ------------------------------
-## == Time Series #4 ==
-Orgs=SkyCoord([(12.37026024, 58.74383151)],frame='fk5',unit=(u.deg, u.deg))
-PA = Angle([Angle(140,'deg') for Org in Orgs])
-Ln = Angle([32  for Org in Orgs],u.arcsec)
+# == Time Series #6 ==
+Orgs=SkyCoord([(12.36968543, 58.75960183)],frame='fk5',unit=(u.deg, u.deg))
+PA = Angle([Angle(150,'deg') for Org in Orgs])
+Ln = Angle([60  for Org in Orgs],u.arcsec)
 Wd = Angle([20  for Org in Orgs],u.arcsec)
-
-star_list = [np.array([[12.36914292, 58.74706852]]), np.array([[12.37002106, 58.74446938]])]
-y_cutoff = [[-10,-7],[-10,-6],[-10,-5],    [-7,-3], [-7,-3], [-6,-1], [-1,4], [2,5], [4,7], [5,8]]
-x_cutoff = [[-16,-4],[-10.5,-1],[-7.3,1],  [-6.5,2],[-6.5,2],[-3.5,5.5], [0,10],  [2,10],  [5,13], [5,14]]
+x_cutoff = [[-28.6, -18.1], [-21.0, -8.5], [-10.9, -3.3], [-5.8, 4.1], [2.3, 12.4], [7.0, 15.4], [13.9, 21.6], [13.4, 24.1]]
+y_cutoff = [[-10.0, -4.0], [-9.0, -4.0], [-9.7, -0.1], [-3.5, 0.0], [-5.1, -2.0], [-5.2, -2.6], [0.5, 5.6], [-4.0, -0.5]]
 
 #	<dust_width, PeakFlux, arcs_shift, phs_grad, add_const>
-popt_lst = [np.array([27.55, 32.461, -8.144, -18.929, -0.115]),
-np.array([21.723, 54.131, -5.778, -10.947, -10.517]),
-np.array([37.887, 63.339, -2.634, -13.362, -5.716]),
-np.array([43.547, 59.811, -1.991, -15.924, -6.692]),
-np.array([73.816, 117.745, -2.383, -22.311, -11.677]),
-np.array([6.489, 34.604, 2.167, -8.984, 0.636]),
-np.array([24.831, 39.319, 6.106, -12.016, -1.906]),
-np.array([17.759, 42.103, 6.706, -14.159, -2.258]),
-np.array([19.964, 39.998, 9.909, -22.652, 0.999]),
-np.array([17.085, 24.855, 10.728, -21.573, 0.668])]
+# popt_lst = [np.array([97.944, 46.816, -22.056, -36.584, 3.746]),
+# np.array([200.0, 208.404, -13.17, -60.726, 0.285]),
+# np.array([21.743, 90.199, -6.657, -15.296, -0.118]),
+# np.array([43.557, 48.488, 0.886, -19.698, 0.526]),
+# np.array([81.254, 75.89, 8.646, -26.628, -0.951]),
+# np.array([49.317, 41.728, 12.106, -28.681, -0.639]),
+# np.array([181.039, 89.14, 18.385, -99.989, 1.775]),
+# np.array([46.294, 90.103, 20.144, -22.949, 1.203])]
 
-filenames=['20130826/tyc4419_tyc4519_20130826_coadd.fits',
- 'KECK/tyc4419_1_DEIMOS_5_6_coadd.fits',
- '20131202/tyc4419_tyc4519_20131202_coadd.fits',
- 'KECK/tyc4419_1_g_LRIS_131228_coadd.fits',
+filenames = ['20120118/tyc4419_tyc4519_20120118_coadd.fits',
+ '20120626/tyc4419_tyc4519_20120626_coadd.fits',
+ 'KECK/tyc4419_1.R.r120918_0182_4.hdrfix_CORRECTED_DEG_MJD.sw._NOT_REALLY_coadd.fits',
+ '20130109/tyc4419_tyc4519_20130109_coadd.fits',
+ '20130609/tyc4419_tyc4519_20130609_coadd.fits',
+ '20130826/tyc4419_tyc4519_20130826_coadd.fits',
  'KECK/tyc4419_1_R_LRIS_131228_coadd.fits',
- '20140226/tyc4419_tyc4519_20140226_coadd.fits',
- '20140531/tyc4419_tyc4519_20140531_coadd.fits',
- '20140621/tyc4419_tyc4519_20140621_coadd.fits',
- '20140827/tyc4419_tyc4519_20140827_coadd.fits',
- '20140923/tyc4419_tyc4519_20140923_coadd.fits']
+ '20140226/tyc4419_tyc4519_20140226_coadd.fits']
 
 
-phs_grd_lst = [-20.7]*len(filenames)
+
+# phs_grd_lst = [-18.3]*len(filenames)
 # ------------------------------
 
 
@@ -279,7 +283,7 @@ DIFF_df = F2D.FitsDiff(files)
 # DIFF_df.iloc[:,8] = pd.Series(data=np.array([7.5,3.7,8.3,5.4]))#([8.4]*15))#
 # for i in np.arange(len(DIFF_df)): DIFF_df.iloc[i,10]=LEtb.pix2ang(DIFF_df.iloc[i]['WCS_w'],DIFF_df.iloc[i,8])
 
-
+# %
 global coord_list
 coord_list=[]
 
@@ -303,14 +307,15 @@ FP_df_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf, REF_image=None, N_bins=int(Ln
 # ========== PLOT IMAGES & PROFILES ==========
 plt.close('all')
 figures=[plt.figure() for i in DIFF_df.index]
+# figures = [figures[0]]*8
 managers=[manager for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 for mng in managers: mng.window.showMaximized()
 # LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#, crest_lines=CLs)#,peaks_locs=b)
-LEplots.imshows(DIFF_df, profDF=slitFPdf, prof_sampDF_lst=FP_df_lst, prof_crop=(x_cutoff,y_cutoff), popts=popt_lst, g_cl_arg=coord_list, FullScreen=True, figs=figures)
+axs = LEplots.imshows(DIFF_df, profDF=slitFPdf, prof_sampDF_lst=FP_df_lst, prof_crop=(x_cutoff,y_cutoff), popts=popt_lst, g_cl_arg=coord_list, FullScreen=True, figs=figures)
 # %
 
 w_s = DIFF_df['WCS_w'].to_list()
-LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'],slitFPdf.iloc[0]['Length']*1.4,slitFPdf.iloc[0]['Length']*2.4)
+LEplots.match_zoom_wcs(axs,w_s,slitFPdf.iloc[0]['Orig'],slitFPdf.iloc[0]['Length']*1.4,slitFPdf.iloc[0]['Length']*1.4)
 # LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'].directional_offset_by(slitFPdf.iloc[0]['PA'],Angle(25,u.arcsec)),slitFPdf.iloc[0]['Length']*0.35,slitFPdf.iloc[0]['Length']*0.3)
 
 
@@ -326,20 +331,19 @@ def axisEqual3D(ax):
     for ctr, dim in zip(centers, 'xy'):
         getattr(ax, 'set_{}lim'.format(dim))(ctr - r, ctr + r)
 
-# SN_f = LCtable['func_L'][LCtable['dm15']==1.0][0]
-# fig=plt.figure()
-# ax=fig.add_subplot(projection='3d')
-# fig=plt.figure()
-# ax2=fig.add_subplot()
+
 inds=[i for i in np.arange(len(DIFF_df))]#[0,1,2,3]#,4,5,6,7]
 slit_inds = [0]
 
 
 # x_cutoff, y_cutoff = coord_corners2xy_lims(coord_list,Orgs[0],PA[0])
+if not x_cutoff:
+    x_cutoff = [-Ln[0].arcsec/2, Ln[0].arcsec/2]*len(DIFF_df)
+if not y_cutoff:
+    y_cutoff = [-Wd[0].arcsec/2, Wd[0].arcsec/2]*len(DIFF_df)
+
 
 for slit_ind in slit_inds:
-    
-    # star_masks = [[[-9.388,-0.419],1.2], [[-5.810,3.568],1.2], [[-2.205,1.803],1.2], [[-3.849,0.971],1.2], [[2.500,-1.966],1.2], [[-5.107,-8.458],1.2], [[-3.637,-8.029],1.2]]
     input_arr_s, z_s = [], []
     for ind in inds:
         iii=inds.index(ind)
@@ -404,8 +408,8 @@ phs_grd_lst_BU = deepcopy(phs_grd_lst)
 #         [200.0,    1e3,             35,    50.0*np.pi/180,   -1e0, 5e1])
 # bnd = ([1e-3,     1e1,            -15,   -10.0*np.pi/180,  -4e1, -500 ],
 #         [200.0,    1e3,             15,    10.0*np.pi/180,   -1e0, 2e3])
-bnd = ([1e-3,     1e1,            -16,     -20, -500 ],
-        [200.0,    1e3,             16,      -1e0, 2e3])
+bnd = ([1e-3,     1e1,            -16,     -200, -500 ],
+        [200.0,    1e3,             16,      -1e-1, 2e3])
 bnds=[bnd]*len(DIFF_df)
 
 
@@ -418,6 +422,9 @@ CLs = np.zeros((len(input_arr_s),3,3))
 popt_lst=[]
 errs_lst=[]
 phs_grads=[]
+
+pcov_lst=[]
+pcorr_lst=[]
 for i in np.arange(len(input_arr_s)):
     z = z_s[i].flatten()
     inp_arr = input_arr_s[i]
@@ -430,15 +437,18 @@ for i in np.arange(len(input_arr_s)):
     if phs_grd_lst_BU:
         del (bnd_tmp[0][3],bnd_tmp[1][3])
         phs_grd = deepcopy(phs_grd_lst_BU[i])
-        popt, pcov = curve_fit(lambda x, p01,p02,p04, add_const: LEprof_model(x, p01,p02,p04, phs_grd, add_const), inp_arr,z,bounds=bnd_tmp,absolute_sigma=True)#,sigma=np.ones(inp_arr[:,0].shape)*20)
+        popt, pcov = curve_fit(lambda x, p01,p02,p04, add_const: LEprof_model(x, p01,p02,p04, phs_grd, add_const), inp_arr,z,bounds=bnd_tmp,absolute_sigma=True)
         popt = np.insert(popt,3,phs_grd)
-        pcov = np.insert(pcov,3,0.0)
+        pcov = np.insert(pcov,2,np.zeros((4,)),0)
+        pcov = np.insert(pcov,2,np.zeros((5,)),1)
     elif popt_lst_BU:
         popt = deepcopy(popt_lst_BU[i])
     else:
         popt, pcov = curve_fit(LEprof_model,inp_arr,z,bounds=bnd_tmp,absolute_sigma=True)#,sigma=np.ones(inp_arr[:,0].shape)*20)
     # errs = np.sqrt(np.diag(pcov))
     popt_lst.append(popt.copy())
+    pcov_lst.append(deepcopy(pcov))
+    pcorr_lst.append(cov2corr(pcov))
     # errs_lst.append(errs.copy())
     # popt = [20.0,     10e1,            -0.0,   -34.0*np.pi/180,   -14 ]
     # popt = [  3.09876149, 116.87448495,   8.91707928 +(mjd-56654.2),  -0.47029305,  -5.38910457, -14.00613042]
@@ -463,10 +473,10 @@ for i in np.arange(len(input_arr_s)):
     # ax = fig.add_subplot(111)
     fig=figures[i]
     if i!=0:
-        ax=fig.add_subplot(224)#,sharex=ax)
+        ax=fig.add_subplot(122)#,sharex=ax)
         # ax=fig.add_subplot(224,projection='3d',sharex=ax,sharey=ax)
     else:
-        ax=fig.add_subplot(224)
+        ax=fig.add_subplot(122)
         # ax=fig.add_subplot(224,projection='3d')
     
     x, y = inp_arr[:,0], inp_arr[:,1]
@@ -477,10 +487,20 @@ for i in np.arange(len(input_arr_s)):
     
     inp_arr_zeroPSF = deepcopy(inp_arr)
     inp_arr_zeroPSF[:,-1] = inp_arr_zeroPSF[:,-1]*0
-    ax.scatter(x,LEprof_model(inp_arr_zeroPSF,0,p02,p04,p06, add_const),c='k',s=0.2,label='zero PSF & zero dust width')
-    ax.scatter(x,LEprof_model(inp_arr,0,p02,p04,p06, add_const),c='b',s=0.2,label='zero dust width')
-    ax.scatter(x,LEprof_model(inp_arr,*popt),cmap='jet',vmax=F_SCALE,vmin=-F_SCALE,c='r',s=1,label='fit')
-    ax.scatter(x,z,cmap='jet',vmax=F_SCALE,vmin=-F_SCALE,s=1)
+    
+    x_argsort=x.argsort()
+    x_sorted = x[x_argsort]
+    inp_arr_sorted = inp_arr[x_argsort]
+    inp_arr_zeroPSF_sorted = inp_arr_zeroPSF[x_argsort]
+    z_sorted = z[x_argsort]
+    ax.plot(x_sorted,LEprof_model(inp_arr_zeroPSF_sorted,0,p02,p04,p06, add_const),c='k',linewidth=0.5,label='clean light curve')
+    ax.plot(x_sorted,LEprof_model(inp_arr_sorted,0,p02,p04,p06, add_const),c='b',linewidth=0.5,label='PSF only')
+    ax.plot(x_sorted,LEprof_model(inp_arr_sorted,*popt),c='r',linewidth=1,label='fit (PSF+dust)')
+    # ax.plot(x_sorted,z_sorted,linewidth=0.2,label='data')
+    # ax.scatter(x,LEprof_model(inp_arr_zeroPSF,0,p02,p04,p06, add_const),c='k',s=0.2,label='zero PSF & zero dust width')
+    # ax.scatter(x,LEprof_model(inp_arr,0,p02,p04,p06, add_const),c='b',s=0.2,label='zero dust width')
+    # ax.scatter(x,LEprof_model(inp_arr,*popt),c='r',s=1,label='fit')
+    ax.scatter(x,z,cmap='jet',s=0.5, label='data')
     
     # im=ax.scatter(x,y,cmap='jet',c=z-LEprof_model(inp_arr,*popt),s=1)
     # fig.colorbar(im,ax=ax,orientation="horizontal")
@@ -506,6 +526,18 @@ for i in np.arange(len(input_arr_s)):
     CLs[i,0,2], CLs[i,1,2], CLs[i,2,2] = mjd*np.ones(len(zero_y))
     
     ax.legend()
+    
+    ax_img = axs[i]
+    prof_orig = slitFPdf['Orig'][0]
+    prof_PA_x = slitFPdf['PA'][0]
+    prof_PA_y = slitFPdf['PA'][0] + Angle(90,u.deg)
+    prof_width = slitFPdf['WIDTH'][0]
+    
+    peak_arcsec_shift = Angle(popt[2],u.arcsec)
+    corner1 = prof_orig.directional_offset_by(prof_PA_x,peak_arcsec_shift).directional_offset_by(prof_PA_y,-prof_width/2)
+    corner2 = prof_orig.directional_offset_by(prof_PA_x,peak_arcsec_shift).directional_offset_by(prof_PA_y, prof_width/2)
+    xy = np.array([[corner1.ra.degree, corner1.dec.degree], [corner2.ra.degree, corner2.dec.degree]])
+    ax_img.plot(xy[:,0], xy[:,1], transform = ax_img.get_transform('world'), linewidth=0.5, color='r')
 
 axisEqual3D(ax3)
 ax3.set_xlabel('x')
@@ -560,3 +592,14 @@ coeff, r, rank, s = np.linalg.lstsq(A, B)
 X_mesh, Y_mesh = np.meshgrid(np.linspace(X.min(),X.max(),10), np.linspace(Y.min(),Y.max(),10))
 Z_lstsq = coeff[0] + coeff[1]*X_mesh + coeff[2]*Y_mesh
 ax3.plot_surface(X_mesh,Y_mesh,Z_lstsq,alpha=0.2)
+
+# %%
+# == STASH ==
+
+figures[0].subplots_adjust(hspace=0,wspace=0)
+
+for vv in figures[0].get_axes():
+    vv.set_title('')
+    for ll in vv.get_lines()[0:1]:
+        ll.set_linewidth(0.2)
+        ll.set_c('b')

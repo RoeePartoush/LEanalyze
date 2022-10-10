@@ -20,7 +20,7 @@ from astropy.io import fits
 from astropy import wcs
 from astropy.time import Time
 from astropy import units as u
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, SkyCoord
 from astropy.visualization import ZScaleInterval
 #from astropy.wcs.utils import wcs_to_celestial_frame
 #from astropy.coordinates import SkyCoord
@@ -374,7 +374,7 @@ def filt_inds(im_shp, vec):
     return vec, notnan
 
 ## =============== LOAD_DIFIMG ================
-#def load_difimg(diff_flnm, msks=None, nerrs=None, home_dir=None):
+#__difimg(diff_flnm, msks=None, nerrs=None, home_dir=None):
 #    
 #    from astropy.io.fits.verify import VerifyWarning
 #    import warnings
@@ -1006,18 +1006,28 @@ def onclick(event):
         print('==================================\nPixel_1: x = %d, y = %d'%(ix, iy))
         
         print('World_1: RA = %.8f [deg], DEC = %.8f [deg]'%(coord_tmp[0].deg,coord_tmp[1].deg))
+        plt.sca(first_ax)
+        plt.text(ix,iy,'(%.2f,%.2f) [deg,deg]'%(coord_tmp[0].deg,coord_tmp[1].deg), c='k')
         global coord1
-        coord1 = coord_tmp    
+        # coord1 = coord_tmp  
+        coord1 = SkyCoord(coord_tmp[0],coord_tmp[1],frame='fk5')
         first_click = False
     elif event.inaxes==first_ax:
         print('Pixel_2: x = %d, y = %d'%(ix, iy))
         print('World_2: RA = %.8f [deg], DEC = %.8f [deg]'%(coord_tmp[0].deg,coord_tmp[1].deg))
         first_click = True
-        coord2 = coord_tmp
-        [arcltPA, angSeper, mid_sph] = plot_arclt(coord2,coord1,Angle('0d1m0s'),event.inaxes,w)
-        print('World_mid: RA = %.8f [deg], DEC = %.8f [deg]'%(mid_sph[0].deg,mid_sph[1].deg))
-        print('PA: '+str(arcltPA.deg)+' [deg]')
-        print('Ang. sep.: '+str(angSeper.arcmin)+' [arcmin]')
+        # coord2 = coord_tmp
+        coord2 = SkyCoord(coord_tmp[0],coord_tmp[1],frame='fk5')
+        coord_tmp1 = Angle([coord1.ra.deg,coord1.dec.deg],u.deg)
+        coord_tmp2 = Angle([coord2.ra.deg,coord2.dec.deg],u.deg)
+        [arcltPA, angSeper, mid_sph] = plot_arclt(coord_tmp2,coord_tmp1,Angle('0d1m0s'),event.inaxes,w)
+        arcltPA = (coord2.position_angle(coord1) + Angle(180,u.deg)).wrap_at(360 * u.deg)
+        angSeper = coord2.separation(coord1)
+        mid_sph = coord1.directional_offset_by(arcltPA,angSeper/2)
+        plt.text(ix,iy,'PA: %.1f [deg]'%(arcltPA.deg), c='r')#, bbox=dict(fill=False, edgecolor='red', linewidth=2))
+        print('World_mid: RA = %.8f [deg], DEC = %.8f [deg]'%(mid_sph.ra.deg,mid_sph.dec.deg))
+        print('PA: %.1f [deg]'%(arcltPA.deg))
+        print('Ang. sep.: '+str(angSeper.arcsec)+' [arcsec]')
         print('==================================\n\n')
     return
 def onpress(event):

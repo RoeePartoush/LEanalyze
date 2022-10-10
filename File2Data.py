@@ -111,7 +111,7 @@ def FitsParams(diff_flnm, difDF):
     return difDF
 
 
-def LightCurves(LCs_file):
+def LightCurves(LCs_file,extrapolate=True,normalize_f=True):
     tbl=asc.read(LCs_file)
     
     [DM15s, dm15_inv_inds] = np.unique(np.array(tbl["dm15"]), return_inverse=True)
@@ -127,8 +127,8 @@ def LightCurves(LCs_file):
             delta   = float(        tbl["delta"]    [inds[Dinds[0]]])
             psbnd   =               tbl["passband"] [inds[Dinds[0]]]
             phases  = SQ(np.array(  tbl["phase"]    [inds[Dinds]]))
-            mags    = SQ(np.array(  tbl["mag"]      [inds[Dinds]]))            
-            func_M, func_L = LCdata2func(phases,mags)
+            mags    = SQ(np.array(  tbl["mag"]      [inds[Dinds]]))
+            func_M, func_L = LCdata2func(phases,mags,extrapolate=extrapolate,normalize_f=normalize_f)
 
             if first_row:
                 LC_tbl = Table({'dm15':     [dm15]  ,
@@ -144,13 +144,19 @@ def LightCurves(LCs_file):
         
     return LC_tbl
 
-def LCdata2func(phases,mags_p,smooth_lin=False):
+def LCdata2func(phases,mags_p,smooth_lin=False,extrapolate=False,normalize_f=True):
+    if extrapolate:
+        phases, mags_p = extrap_mags(phases,mags_p)
+    
+    if normalize_f:
+        mags_p = mags_p - mags_p.min()
+    
     back_mag = np.Inf#np.max([mags_p[0], mags_p[-1]])
     back_LinFlux = 0.0
     LinFlux_p = DF.Mag2ADU(mags_p)
     phs_res = 2
     
-    phases_shft = phases.copy()# - phases[np.nanargmin(mags_p)]
+    phases_shft = phases.copy() - phases[np.nanargmin(mags_p)]
 #    phases_shft = phases.copy()# - 1
     def func_mag(phase):
         mag = np.interp(phase, phases_shft, mags_p, left=back_mag, right=back_mag)
@@ -194,6 +200,45 @@ def LCdata2func(phases,mags_p,smooth_lin=False):
                 return LinFlux
     
     return func_mag, func_LinFlux
+
+def extrap_mags(phases,mags_p,DDR=7):
+    # DR: desired Dynamic Range in magnitude scale
+    first_mag, first_phase = mags_p[0], phases[0]
+    last_mag, last_phase = mags_p[-1], phases[-1]
+    peak_mag = mags_p.min()
+    mags_diff = np.diff(mags_p)/np.diff(phases)
+    
+    extrap_phs_s, extrap_mag_s = [], []
+    early_DR = first_mag - peak_mag
+    if early_DR < DDR:
+        extrap_first_phs = first_phase - early_DR/(-mags_diff[0])
+        extrap_first_mag = peak_mag + DDR
+        extrap_phs_s = np.linspace(extrap_first_phs,first_phase,np.round((first_phase-extrap_first_phs)/1.0).astype(int),endpoint=False)
+        phases_interp = np.array([extrap_first_phs]+phases.tolist())
+        mags_p_interp = np.array([extrap_first_mag]+mags_p.tolist())
+        extrap_mag_s = np.interp(extrap_phs_s,phases_interp,mags_p_interp)
+        phases = np.array([extrap_first_phs]+extrap_phs_s.tolist()[1:]+phases.tolist())
+        mags_p = np.array([extrap_first_mag]+extrap_mag_s.tolist()[1:]+mags_p.tolist())
+        # phases = np.array([extrap_first_phs]+phases.tolist())
+        # mags_p = np.array([extrap_first_mag]+mags_p.tolist())
+    
+    late_DR = last_mag - peak_mag
+    if late_DR < DDR:
+        extrap_last_phs = last_phase + late_DR/mags_diff[-1]
+        extrap_last_mag = peak_mag + DDR
+        extrap_phs_s = np.linspace(last_phase,extrap_last_phs,np.round((extrap_last_phs-last_phase)/1.0).astype(int),endpoint=False)
+        phases_interp = np.array(phases.tolist()+[extrap_last_phs])
+        mags_p_interp = np.array(mags_p.tolist()+[extrap_last_mag])
+        extrap_mag_s = np.interp(extrap_phs_s,phases_interp,mags_p_interp)
+        phases = np.array(phases.tolist()+extrap_phs_s.tolist()[1:]+[extrap_last_phs])
+        mags_p = np.array(mags_p.tolist()+extrap_mag_s.tolist()[1:]+[extrap_last_mag])
+        # phases = np.array(phases.tolist() + [extrap_last_phs])
+        # mags_p = np.array(mags_p.tolist() + [extrap_last_mag])
+    
+    # peak = mags_p.min()
+    # mags_p_lst = mag_p.copy().tolist()
+    
+    return phases, mags_p
 
 def fishKW(header,KWlist):
     KWval = None

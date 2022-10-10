@@ -51,7 +51,8 @@ LCtable = F2D.LightCurves(LCs_file)
 
 # %%
 # ========== LOAD FITS FILES ==========
-
+x_cutoff = [[19,32.5]]*2 + [[19,32.5]]*2
+y_cutoff = []
 files=[]
 
 # roots=['/Users/roeepartoush/Documents/Research/Data/DOWNLOAD/']
@@ -79,8 +80,8 @@ if not files:
                 # '20130109/tyc4419_tyc4519_20130109_coadd.fits',
                 # '20130609/tyc4419_tyc4519_20130609_coadd.fits',
                 # '20130826/tyc4419_tyc4519_20130826_coadd.fits',
-                # 'KECK/tyc4419_1_DEIMOS_5_6_coadd.fits',
-                # '20131202/tyc4419_tyc4519_20131202_coadd.fits',
+                'KECK/tyc4419_1_DEIMOS_5_6_coadd.fits',
+                '20131202/tyc4419_tyc4519_20131202_coadd.fits',
                 'KECK/tyc4419_1_g_LRIS_131228_coadd.fits',
                 'KECK/tyc4419_1_R_LRIS_131228_coadd.fits']
                 # '20140226/tyc4419_tyc4519_20140226_coadd.fits']
@@ -178,16 +179,21 @@ slitFPdf = pd.DataFrame(index=np.arange(len(Orgs)), columns=clmns, data = [(Orgs
 # ========== EXTRACT PROFILE FROM IMAGE ==========
 FP_df_lst = LEtb.getFluxProfile(DIFF_df, slitFPdf, REF_image=None, N_bins=int(Ln[0].arcsec))
 # %%
+if not x_cutoff:
+    x_cutoff = [[-Ln[0].arcsec/2, Ln[0].arcsec/2]]*len(DIFF_df)
+if not y_cutoff:
+    y_cutoff = [[-Wd[0].arcsec/2, Wd[0].arcsec/2]]*len(DIFF_df)
+
 # ========== PLOT IMAGES & PROFILES ==========
 plt.close('all')
 figures=[plt.figure() for i in DIFF_df.index]
 managers=[manager for manager in plt._pylab_helpers.Gcf.get_all_fig_managers()]
 for mng in managers: mng.window.showMaximized()
-LEplots.imshows(DIFF_df,REF_image=None,g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#, crest_lines=CLs,peaks_locs=b)
+axs = LEplots.imshows(DIFF_df,REF_image=None,prof_crop=(x_cutoff,y_cutoff),g_cl_arg=coord_list,FullScreen=True,med_filt_size=None,figs=figures,profDF=slitFPdf,prof_sampDF_lst=FP_df_lst,fluxSpace='LIN')#, crest_lines=CLs,peaks_locs=b)
 # %
 
 w_s = DIFF_df['WCS_w'].to_list()
-LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'],slitFPdf.iloc[0]['Length']*1.4,slitFPdf.iloc[0]['Length']*2.4)
+LEplots.match_zoom_wcs(axs,w_s,slitFPdf.iloc[0]['Orig'].directional_offset_by(PA[0],Angle(10,u.arcsec)),slitFPdf.iloc[0]['Length']*0.3,slitFPdf.iloc[0]['Length']*0.6)
 # LEplots.match_zoom_wcs(figures,w_s,slitFPdf.iloc[0]['Orig'].directional_offset_by(slitFPdf.iloc[0]['PA'],Angle(25,u.arcsec)),slitFPdf.iloc[0]['Length']/2,slitFPdf.iloc[0]['Length']/4)
 
 
@@ -208,12 +214,12 @@ def axisEqual3D(ax):
 # ax=fig.add_subplot(projection='3d')
 # fig=plt.figure()
 # ax2=fig.add_subplot()
-inds=[0,1]#,2,3,4,5,6,7]
+inds=np.arange(len(DIFF_df)).tolist()#,2,3,4,5,6,7]
 slit_inds = [0]
 
 # y_cutoff = [[-10,-7],[-10,-6],[-10,-5],    [-7,-3], [-7,-3], [-6,-1], [-1,4], [2,5], [4,7], [5,8]]
 # x_cutoff = [[-16,-4],[-10.5,-1],[-7.3,1],  [-6.5,2],[-6.5,2],[-3.5,5.5], [0,10],  [2,10],  [5,13], [5,14]]
-x_cutoff, y_cutoff = coord_corners2xy_lims(coord_list,Orgs[0],PA[0])
+# x_cutoff, y_cutoff = coord_corners2xy_lims(coord_list,Orgs[0],PA[0])
 for slit_ind in slit_inds:
     
     # star_masks = [[[-9.388,-0.419],1.2], [[-5.810,3.568],1.2], [[-2.205,1.803],1.2], [[-3.849,0.971],1.2], [[2.500,-1.966],1.2], [[-5.107,-8.458],1.2], [[-3.637,-8.029],1.2]]
